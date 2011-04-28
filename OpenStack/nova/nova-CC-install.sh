@@ -75,12 +75,6 @@ echo "Region list:              $REGION_LIST"
 echo
 echo "This region:              $THIS_REGION"
 
-cat <<MYSQL_PRESEED | debconf-set-selections
-mysql-server-5.1 mysql-server/root_password password $MYSQL_PW
-mysql-server-5.1 mysql-server/root_password_again password $MYSQL_PW
-mysql-server-5.1 mysql-server/start_on_boot boolean true
-MYSQL_PRESEED
-
 echo
 echo "##########################"
 echo "Nova Network Configuration"
@@ -105,6 +99,12 @@ echo "############################"
 echo "Installing required packages"
 echo "############################"
 echo
+
+cat <<MYSQL_PRESEED | debconf-set-selections
+mysql-server-5.1 mysql-server/root_password password $MYSQL_PW
+mysql-server-5.1 mysql-server/root_password_again password $MYSQL_PW
+mysql-server-5.1 mysql-server/start_on_boot boolean true
+MYSQL_PRESEED
 
 apt-get -q -y install python-software-properties
 
