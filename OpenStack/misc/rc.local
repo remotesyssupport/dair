@@ -1,0 +1,115 @@
+#!/bin/bash 
+#
+# rc.local
+#
+# This script is executed at the end of each multiuser runlevel.
+# Make sure that the script will "exit 0" on success or any other
+# value on error.
+#
+# In order to enable or disable this script just change the execution
+# bits.
+#----------------------------------------------------------------------------
+set -o nounset # exit if any variable is not set
+
+BASE_URL="http://169.254.169.254/latest"
+USERDATA_URL="${BASE_URL}/user-data"
+METADATA_URL="${BASE_URL}/meta-data"
+SSH_KEY_URL="${METADATA_URL}/public-keys/0/openssh-key"
+USERDATA="/tmp/userdata.sh"
+INIT="/root/.userdata-init"
+LOG="/root/init.log"
+AUTHORIZED_KEYS="/root/.ssh/authorized_keys"
+
+if [ `whoami` != root ]; then
+	echo "---- Please run this as the 'root' user";
+	exit 1
+fi
+
+
+log() {
+	echo $(date -R): $1 >> $LOG 2>&1
+}
+
+
+inject_ssh_key() 
+{
+	# simple attempt to get the user ssh key using the meta-data service
+	CURL_RESULT=$(curl -m 20 -s $SSH_KEY_URL)
+	RETURN_CODE=$?
+	LENGTH="${#CURL_RESULT}"
+	if [ $RETURN_CODE -ne 0 ] || [ $LENGTH = 0 ]; then
+		log "error retrieving ssh key"
+		log "curl return code: $RETURN_CODE"
+		log "curl length: $LENGTH"
+	else
+		KEY=$(echo $CURL_RESULT | grep 'ssh-rsa')
+		grep -s -q "$KEY" "$AUTHORIZED_KEYS"
+		RETURN_CODE=$?
+		log " grep return code: $RETURN_CODE"
+		if [ $RETURN_CODE -eq 0 ]; then
+			log "ssh key found"
+		else
+			log "Injecting ssh key"
+			mkdir -p /root/.ssh
+			echo $KEY >> "$AUTHORIZED_KEYS"
+		fi
+	fi
+}
+
+
+get_userdata () 
+{
+	wget $USERDATA_URL -O $USERDATA --append-output $LOG --no-clobber --retry-connrefused --tries=20 
+	RETURN_CODE=$?
+
+ 	log "wget return code: $RETURN_CODE"
+ 	if [ "$RETURN_CODE" -gt 1 ]; then
+		log "error retrieving user data"
+	fi
+	
+	if [ ! -f $USERDATA ]; then
+		log "userdata file $USERDATA not found"
+	fi
+	
+	if [ ! -s "$USERDATA" ]; then
+		log "userdata file $USERDATA is zero length"
+	fi
+}
+
+
+run_userdata()
+{
+	if [ ! -f $INIT ]; then
+		log "running for the first time"
+		RUN="true"
+	else
+		log "checking for run always"
+		RUN=$(grep -E "^#.*CESWP_RUN_ALWAYS" $USERDATA)
+	fi
+
+	if [ -z "$RUN" ] ; then
+		log "do not execute userdata"
+	else
+		touch $INIT
+		chmod +x $USERDATA
+		log "initialized on $(date -R)"
+		log "-----------------------------------------------"
+		log "--------------- userdata start ----------------"
+		$USERDATA >> $LOG 2>&1 
+		log "---------------- userdata end -----------------"
+		log "-----------------------------------------------"
+	fi
+
+	rm -f $USERDATA
+}
+
+
+log "-----------------------------------------------"
+log "------ starting cloud user-data execution -----"
+log "-----------------------------------------------"
+inject_ssh_key
+get_userdata
+run_userdata
+log "------ cloud user-data execution complete -----"
+exit 0
+

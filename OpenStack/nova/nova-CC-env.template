@@ -1,0 +1,56 @@
+# The packages you want to install RELEASE | ANSO | TRUNK
+PACKAGES=ANSO
+
+# IP addresses of the various services
+CC_HOST_IP=DEFAULT_CC_HOST_IP
+S3_HOST_IP=DEFAULT_CC_HOST_IP
+GLANCE_HOST_IP=DEFAULT_CC_HOST_IP
+RABBIT_IP=DEFAULT_CC_HOST_IP
+MYSQL_HOST_IP=DEFAULT_CC_HOST_IP
+MYSQL_PW=dummy-pw
+
+# LDAP settings
+MEMCACHED_HOST_IP=DEFAULT_CC_HOST_IP
+LDAP_USE=YES
+LDAP_HOST_IP=DEFAULT_CC_HOST_IP
+LDAP_DOMAIN=dc=example,dc=com
+LDAP_PW=dummy-pw
+
+# List of region=fqdn pairs separated by commas
+REGION_LIST=alberta=DEFAULT_CC_HOST_IP,quebec=DEFAULT_CC_HOST_IP
+
+# The region where this CC is being installed
+THIS_REGION=alberta
+
+# If the PRIMARY_CC_HOST_IP=CC_HOST_IP then this is the Primary Region 
+PRIMARY_CC_HOST_IP=DEFAULT_CC_HOST_IP
+
+# Network device for VLANs
+VLAN_INTERFACE=eth1
+
+# Starting CIDR range of private IPs for VMs
+NETWORK_CIDR=10.0.0.0/8
+
+# Number of networks for ALL projects
+NETWORK_NUMBER=100
+
+# Number of IPs per network for ALL projects
+IPS_PER_NETWORK=256
+
+# CIDR range of public IPs for VMs
+FLOATING_IPS_CIDR=172.16.0.0/28
+
+# Number of IP addresses reserved for VPN clients per project
+NUMBER_VPN_CLIENTS=5
+
+# The administrator for the entire cloud
+CLOUD_ADMIN=cloud-admin
+
+# The administrator's project to be able to start VMs
+CLOUD_ADMIN_PROJECT=cloud
+
+# Max number of cores a node can support for VMs
+MAX_CORES=24
+
+# Max gigabytes a node can support for volumes
+MAX_GBS=800

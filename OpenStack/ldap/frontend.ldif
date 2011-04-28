@@ -1,0 +1,17 @@
+# Create top-level object in domain
+dn: dc=example,dc=com
+objectClass: top
+objectClass: dcObject
+objectclass: organization
+o: org_name
+description: LDAP 
+
+# Admin user.
+dn: cn=admin,dc=example,dc=com
+objectClass: simpleSecurityObject
+objectClass: organizationalRole
+cn: admin
+description: LDAP administrator
+userPassword: ldap_pw
+
+

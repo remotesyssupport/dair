@@ -1,0 +1,5 @@
+[eucalyptus]
+name=euca2ools
+baseurl=http://www.eucalyptussoftware.com/downloads/repo/euca2ools/1.2/yum/centos/
+enabled=1
+gpgcheck=0

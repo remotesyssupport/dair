@@ -1,0 +1,15 @@
+#!/bin/bash
+if [ $# -lt 2 ]; then
+  echo "usage: $0 [user=admin] project euca-command"
+  exit 1
+fi
+if [ "${2:0:4}" == "euca" ]; then
+  NOVA_USER=admin
+else
+  NOVA_USER=$1
+  shift
+fi
+nova-manage p e $1 $NOVA_USER temprc
+. temprc
+shift
+$@

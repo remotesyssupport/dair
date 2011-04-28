@@ -1,0 +1,29 @@
+#!/bin/bash
+# requires nova-mimic in path or same dir
+MIMIC=nova-mimic
+if ! which $MIMIC; then
+  MIMIC=./nova-mimic
+fi
+if [ $# -lt 1 ]; then
+  echo "usage: $0 [pm=project] project"
+  exit 1
+fi
+KEYS_DIR=/var/lib/nova/keys
+PROJECT_MANAGER=$1
+PROJECT=$PROJECT_MANAGER
+if [ -n "$2" ]; then
+  PROJECT_MANAGER=$2
+fi
+VPN_KEY=$KEYS_DIR/$PROJECT_MANAGER/$PROJECT-vpn.pem
+# find the ip of the vpn
+VPN_IP=`nova-mimic admin euca-describe-instances | grep i- | grep $PROJECT-vpn | cut -f5`
+# authorize connections from port 22
+nova-mimic $PROJECT euca-authorize -P tcp -p 22 $PROJECT-vpn
+# wait for authorization to be applied to the host
+sleep 5
+# make sure the key has the right permissions
+chmod 600 $VPN_KEY
+# ssh to the vpn
+ssh -o StrictHostKeyChecking=no -i $VPN_KEY root@$VPN_IP
+# revert 22 authorization
+nova-mimic $PROJECT euca-revoke -P tcp -p 22 $PROJECT-vpn

@@ -1,0 +1,3 @@
+LDAP_PW=dummy-pw
+DOMAIN=dc=example,dc=com
+ORG_NAME=Example
