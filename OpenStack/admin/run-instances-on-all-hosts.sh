@@ -17,6 +17,6 @@ done
 echo "Waiting 10 seconds for instances to run"
 sleep 10
 
-nova-instances | sort -k7
+euca-describe-instances | grep "INSTANCE.*$AMI.*dair," | sort -k9
 
-echo 'To terminate all instances execute [euca-describe-instances | grep "INST.*dair," | cut -f2 | xargs euca-terminate-instances]'
+echo 'To terminate all instances execute [euca-describe-instances | grep "INSTANCE.*$AMI.*dair," | cut -f2 | xargs euca-terminate-instances]'
