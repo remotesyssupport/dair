@@ -21,7 +21,7 @@ euca-upload-bundle -b $BUCKETNAME -m /tmp/vmlinuz-$(uname -r).manifest.xml
 AKI=$(euca-register $BUCKETNAME/vmlinuz-$(uname -r).manifest.xml | awk '{print $2}')
 echo $AKI
 
-euca-bundle-vol --kernel $AKI --ramdisk $ARI -d /mnt -p $BUCKETNAME -s 10000 -e /mnt,/tmp,/root/.ssh,/root/OpenStack,/root/creds-admin --no-inherit
+euca-bundle-vol --kernel $AKI --ramdisk $ARI -d /mnt -p $BUCKETNAME -s 10000 -e /mnt,/tmp,/root/.ssh,/root/dair,/root/creds-admin --no-inherit
 euca-upload-bundle -b $BUCKETNAME -m /mnt/$BUCKETNAME.manifest.xml
 euca-register $BUCKETNAME/$BUCKETNAME.manifest.xml
 
