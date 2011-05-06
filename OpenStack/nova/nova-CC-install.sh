@@ -110,7 +110,7 @@ apt-get -q -y install python-software-properties
 
 if [ $PACKAGES == "ANSO" ]; then
     apt-key adv --keyserver keyserver.ubuntu.com --recv 460DF9BE
-    add-apt-repository 'deb http://devpackages.ansolabs.com/ maverick main'
+    add-apt-repository 'deb http://packages.ansolabs.com/ maverick main'
 elif [ $PACKAGES == "TRUNK" ]; then
     add-apt-repository ppa:nova-core/trunk
 else
