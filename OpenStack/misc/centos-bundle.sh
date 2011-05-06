@@ -9,6 +9,9 @@ fi
 sed -i "s#LABEL=/#/dev/vda#g" /etc/fstab
 
 rm -f /root/.userdata-init
+rm -f /root/*
+
+history -c && rm -f ~/.bash_history
 
 BUCKETNAME="centos-5-6-server"
 euca-bundle-image -i /boot/initrd-$(uname -r).img --ramdisk true
