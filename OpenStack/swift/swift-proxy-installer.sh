@@ -12,21 +12,6 @@ if [ `whoami` != root ]; then
         exit 1
 fi
 
-function check() {
-	read -p "$1? (y or n)  " input
-	if [ "$input" != "y" ] ; then
-		echo exiting...
-		exit
-	fi
-}
-
-
-check "did you configure the private network on this machine"
-check "have you set up the storage nodes"
-check "do you want the storage node private addresses to be $STORAGE_NODES"
-check "do you want to install the Swift proxy on $PROXY_HOSTNAME"
-check "do you want the proxy private address to be $PROXY_LOCAL_IP"
-
 # Install common Swift software prerequsites:
 apt-get install -y python-software-properties
 add-apt-repository ppa:swift-core/ppa
@@ -132,26 +117,28 @@ swift-ring-builder object.builder create $PARTITION_EXPONENT $REPLICAS $PARTITIO
 # For every storage device on each node add entries to each ring:
 # ZONE should start at 1 and increment by one for each additional node.
 #
-# this script assumes there is only one storage node per zone, which is
-# probably a wonky assumption
-#
-for ZONE in $(seq $ZONES); do 
-	echo "=========== zone $ZONE ==============="
-	i=$[ZONE-1]  # arrays are zero-indexed
-	for NODE in ${STORAGE_NODES[$i]}; do
-		let PORT=6000
-		for DEVICE in ${DEVICES[@]}; do
-			echo "node $NODE, device $DEVICE"
-			echo "----------------------------------"
-			swift-ring-builder object.builder add z$ZONE-$NODE:$PORT/$DEVICE 100
-			let PORT=PORT+1
-			swift-ring-builder container.builder add z$ZONE-$NODE:$PORT/$DEVICE 100
-			let PORT=PORT+1
-			swift-ring-builder account.builder add z$ZONE-$NODE:$PORT/$DEVICE 100
-			let PORT=PORT-2
-			let PORT=PORT+10
-			echo
-		done
+size=${#STORAGE_NODES[@]}
+servers_per_zone=$(($size/$ZONES))
+echo "there are $size storage nodes to distribute across $ZONES zones, so let's have $servers_per_zone per zone"
+for x in $(seq 1 $size); do
+	let ZONE=$((($x+1)/$servers_per_zone))
+	let i=$x-1
+	NODE=${STORAGE_NODES[$i]}
+	echo "server $x ($NODE) ---> zone $ZONE"
+	let PORT=6000
+	for DEVICE in ${DEVICES[@]}; do
+		echo "node $NODE, device $DEVICE"
+		echo "----------------------------------"
+		echo swift-ring-builder object.builder add z$ZONE-$NODE:$PORT/$DEVICE 100
+		swift-ring-builder object.builder add z$ZONE-$NODE:$PORT/$DEVICE 100
+		let PORT=PORT+1
+		echo swift-ring-builder container.builder add z$ZONE-$NODE:$PORT/$DEVICE 100
+		swift-ring-builder container.builder add z$ZONE-$NODE:$PORT/$DEVICE 100
+		let PORT=PORT+1
+		echo swift-ring-builder account.builder add z$ZONE-$NODE:$PORT/$DEVICE 100
+		swift-ring-builder account.builder add z$ZONE-$NODE:$PORT/$DEVICE 100
+		let PORT=PORT-2
+		echo
 	done
 done
 

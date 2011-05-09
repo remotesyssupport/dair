@@ -6,7 +6,6 @@ source $ABS_PATH/swift.env
 
 ACCOUNT_SERVER_COMMON_CONFIG=" 
 user = swift 
-mount_check = false
 
 [pipeline:main]
 pipeline = account-server
@@ -23,7 +22,6 @@ use = egg:swift#account
 
 CONTAINER_SERVER_COMMON_CONFIG=" 
 user = swift
-mount_check = false
 
 [pipeline:main]
 pipeline = container-server
@@ -40,7 +38,6 @@ use = egg:swift#container
 
 OBJECT_SERVER_COMMON_CONFIG="
 user = swift 
-mount_check = false
 
 [pipeline:main]
 pipeline = object-server
@@ -60,8 +57,6 @@ COMMON_CONFIG=(\
 "$CONTAINER_SERVER_COMMON_CONFIG" \
 "$ACCOUNT_SERVER_COMMON_CONFIG")
 
-SERVERTYPES=("object-server container-server account-server")
-
 # exit if any unset variables
 set -o nounset
 
@@ -71,17 +66,6 @@ if [ `whoami` != root ]; then
         exit 1
 fi
 
-function check() {
-	read -p "$1? (y or n)  " input
-	if [ "$input" != "y" ] ; then
-		echo exiting...
-		exit
-	fi
-}
-
-check "did you set up a disk partition on this machine with fdisk"
-check "did you configure the private network on this machine"
-check "do you want the storage node private address to be $STORAGE_LOCAL_IP"
 
 # Install common Swift software prerequsites:
 apt-get install -y python-software-properties
@@ -109,31 +93,32 @@ apt-get install -y swift-account swift-container swift-object xfsprogs
 echo "mounting attached storage on $MOUNTPOINT"
 mkdir -p $MOUNTPOINT
 
-for DEV in $(ls /dev/* | grep -E "$DEVICE[0-9]"); do 
-	DEV=$(basename "$DEV")
-	mkfs.xfs -f -i size=1024 /dev/$DEV
-	echo "/dev/$DEV $MOUNTPOINT/$DEV xfs noatime,nodiratime,nobarrier,logbufs=8 0 0" >> /etc/fstab
-	mkdir -p $MOUNTPOINT/$DEV
-	mount /dev/$DEV $MOUNTPOINT/$DEV
-done
+# for the DAIR project, we expect the drives have already
+# been mounted and formatted with xfs
+#
+#for DEV in $(ls /dev/* | grep -E "$DEVICE[0-9]"); do 
+#	DEV=$(basename "$DEV")
+#	mkfs.xfs -f -i size=1024 /dev/$DEV
+#	echo "/dev/$DEV $MOUNTPOINT/$DEV xfs noatime,nodiratime,nobarrier,logbufs=8 0 0" >> /etc/fstab
+#	mkdir -p $MOUNTPOINT/$DEV
+#	mount /dev/$DEV $MOUNTPOINT/$DEV
+#done
 chown -R swift $MOUNTPOINT
 
 
-#~ # for each server, write a configuration for the set of storage devices
+SERVERTYPES=("object-server container-server account-server")
 let PORT=6000
 SERVER_NUMBER=0
 for SERVER in ${SERVERTYPES}; do
-	DEVICE_NUMBER=1
-	mkdir -p "/etc/swift/$SERVER"
-	# this time, we'll check the mounted disks for our devices
-	for DEV in $(df | grep $DEVICE | cut -c 57-); do
-		CONFIG_FILE="/etc/swift/$SERVER/$DEVICE_NUMBER.conf"
-		echo "[DEFAULT] " > $CONFIG_FILE
-		echo "devices = $MOUNTPOINT" >> $CONFIG_FILE
-		echo "bind_port = 60$((DEVICE_NUMBER-1))$SERVER_NUMBER" >> $CONFIG_FILE
-		echo "${COMMON_CONFIG[$SERVER_NUMBER]}" >> $CONFIG_FILE
-		let DEVICE_NUMBER+=1
-	done
+	CONFIG_FILE="/etc/swift/$SERVER.conf"
+	echo "writing $CONFIG_FILE"
+	echo "[DEFAULT] " > $CONFIG_FILE
+	# the following entries are not needed if you use the defaults
+	#echo "devices = $MOUNTPOINT" >> $CONFIG_FILE
+	#echo "bind_port = 600$SERVER_NUMBER" >> $CONFIG_FILE
+	echo "bind_ip = 0.0.0.0" >> $CONFIG_FILE
+	echo "workers = 2" >> $CONFIG_FILE
+	echo "${COMMON_CONFIG[$SERVER_NUMBER]}" >> $CONFIG_FILE
 	let SERVER_NUMBER+=1
 done
 
