@@ -55,4 +55,3 @@ sed -i s/^NOVA_ACCESS_KEY.*/"NOVA_ACCESS_KEY = $NOVA_ACCESS_KEY"/g local_setting
 sed -i s/^NOVA_SECRET_KEY.*/"NOVA_SECRET_KEY = $NOVA_SECRET_KEY"/g local_settings.py
 sed -i s/^NOVA_ADMIN_USER.*/"NOVA_ADMIN_USER = $NOVA_ADMIN_USER"/g local_settings.py
 sed -i s/^NOVA_PROJECT.*/"NOVA_PROJECT = '$NOVA_PROJECT'"/g local_settings.py
-
