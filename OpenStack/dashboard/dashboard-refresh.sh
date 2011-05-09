@@ -49,7 +49,6 @@ done
 #~	assistance if you haven't defined any nova projects. 
 #~ --------------------------------------------------------------------- 
 cd "$DASHBOARD/trunk/openstack-dashboard/local"
-cp local_settings.py.example local_settings.py
 
 sed -i s/^NOVA_DEFAULT_REGION.*/"NOVA_DEFAULT_REGION = '$NOVA_DEFAULT_REGION'"/g local_settings.py
 sed -i s/^NOVA_ACCESS_KEY.*/"NOVA_ACCESS_KEY = $NOVA_ACCESS_KEY"/g local_settings.py
