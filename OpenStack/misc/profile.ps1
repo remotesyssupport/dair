@@ -1,5 +1,8 @@
 ########### Euca2ools powershell wrapper ##############
 
+# Make sure to remove quotes surrounding variable values and inline comments
+# from the eucarc file.
+
 if($env:EUCA_HOME){
 $EUCA_HOME = $env:EUCA_HOME #Get-item -path env:EUCA_HOME
 }else{
