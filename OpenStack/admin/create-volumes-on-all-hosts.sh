@@ -14,5 +14,5 @@ sleep 10
 
 euca-describe-volumes | sort -k7
 
-echo 'To terminate all instances execute [euca-describe-volumes | grep "dair," | cut -f2 | xargs -n1 euca-delete-volume]'
+echo 'To terminate ALL instances execute [euca-describe-volumes | grep "dair," | cut -f2 | xargs -n1 euca-delete-volume]'
 
