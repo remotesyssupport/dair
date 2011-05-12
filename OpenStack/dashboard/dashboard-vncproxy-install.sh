@@ -40,8 +40,8 @@ if [ -z "$DSH" ]; then
 	done
 fi
 
-dsh -g compute "--vncproxy_url=http://$DASHBOARD_SERVER_IP:6080 >> /etc/nova/nova.log"
+#dsh -g compute "--vncproxy_url=http://$DASHBOARD_SERVER_IP:6080 >> /etc/nova/nova.log"
 
 # start 'er up!
-nova-vncproxy --flagfile=/etc/nova/nova.conf
+#nova-vncproxy --flagfile=/etc/nova/nova.conf
 
