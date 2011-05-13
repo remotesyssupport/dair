@@ -7,12 +7,12 @@ function usage {
 
 if [ ! -n "$1" ]; then
     echo "Please specify a key pair"
-    usage()
+    usage
 fi
 
 if [ ! -n "$2" ]; then
     echo "Please specify an AMI to run on all hosts"
-    usage()
+    usage
 fi
 
 #TODO: check for XXX and exit out if found
