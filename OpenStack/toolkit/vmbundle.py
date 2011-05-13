@@ -7,6 +7,7 @@ import boto
 import utils
 import vmcreate
 import vminit
+import atexit
 
 GBs = 1024 * 1024 * 1024
 MBs = 1024 * 1024
@@ -14,6 +15,21 @@ DEVICE_PREFIX = "/dev/vd"
 MOUNT_POINT_PREFIX = "/mnt/bundle-"
 DEFAULT_IMAGE_NAME = "new-image"
 DEFAULT_BUCKET_NAME = "my-bucket"
+
+mount_point_created = False
+volume_created = False
+volume_mounted = False
+
+
+@atexit.register
+def cleanup():
+    if volume_mounted:
+        utils.execute("umount " + mount_point)
+    if volume_created:
+        vmcreate.detach_and_delete(volume)
+    if mount_point_created:
+        utils.execute("rm -rf " + mount_point)
+
 
 if not vminit.isRoot():
     print "You need to run this script as root to bundle a VM."
@@ -43,10 +59,9 @@ while os.path.exists(mount_point):
     mount_point_suffix = chr(ord(mount_point_suffix) + 1)
     mount_point = MOUNT_POINT_PREFIX + mount_point_suffix
 
-print("\n***** Creating directory %(mount_point)s *****" % locals())
+print("\n***** Creating mount point %(mount_point)s *****" % locals())
 utils.execute("mkdir -p %(mount_point)s" % locals())
-
-volume = None
+mount_point_created = True
 
 if fs.f_bfree < fs.f_blocks / 2:
     # Calculate open device
@@ -57,7 +72,6 @@ if fs.f_bfree < fs.f_blocks / 2:
 
     if last_device_letter == 'z':
         print("No devices left")
-        cleanup()
         exit(1)
 
     next_device_letter = chr(ord(last_device_letter) + 1)
@@ -69,13 +83,16 @@ if fs.f_bfree < fs.f_blocks / 2:
     if not volume:
         print("Error creating volume")
         cleanup()
-	exit(1)
+
+    volume_created = True
 
     print("\n***** Making filesystem on volume *****")
     utils.execute("mke2fs -q -t ext3 %(device)s" % locals())
 
     print("\n***** Mounting volume to %(mount_point)s *****" % locals())
     utils.execute("mount %(device)s %(mount_point)s *****" % locals())
+
+    volume_mounted = True
 
 dirs_to_exclude = "%(mount_point)s,/root/.ssh,/ubuntu/.ssh" % locals()
 
@@ -87,23 +104,13 @@ else:
     ramdisk_opt = "--ramdisk " + ramdisk_id
 
 print("\n***** Bundling volume *****")
-utils.execute("euca-bundle-vol --no-inherit --kernel %(kernel_id)s %(ramdisk_opt)s -d %(mount_point)s -r x86_64 -p %(image_name)s -s %(disk_size_in_MBs)s -e %(dirs_to_exclude)s" % locals())
+#utils.execute("euca-bundle-vol --no-inherit --kernel %(kernel_id)s %(ramdisk_opt)s -d %(mount_point)s -r x86_64 -p %(image_name)s -s %(disk_size_in_MBs)s -e %(dirs_to_exclude)s" % locals())
 
 print("\n***** Uploading bundle *****")
-utils.execute("euca-upload-bundle -b %(bucket_name)s -m %(mount_point)s/%(image_name)s.manifest.xml" % locals())
-#print shell.stdout
+#utils.execute("euca-upload-bundle -b %(bucket_name)s -m %(mount_point)s/%(image_name)s.manifest.xml" % locals())
 
 print("\n***** Registering bundle *****")
-utils.execute("euca-register %(bucket_name)s/%(image_name)s.manifest.xml" % locals())
-#print shell.stdout
+#utils.execute("euca-register %(bucket_name)s/%(image_name)s.manifest.xml" % locals())
 
 cleanup()
-
-
-def cleanup():
-    if volume:
-	utils.execute("umount " + mount_point)
-        vmcreate.detach_and_delete_volume(volume)
-
-    utils.execute("rm -rf " + mount_point)
 
