@@ -12,7 +12,9 @@ function usage {
 }
 
 function prompt {
-	read -p "$1 : " $2
+	set +u
+	read -e -i "$3" -p "$1 : " $2
+	set -u
 }
 
 function log {
@@ -34,7 +36,7 @@ if [ "$#" -lt 5 ]; then
 	prompt "project name" PROJECT
 	prompt "User's first name" FIRSTNAME
 	prompt "User's last name" LASTNAME
-	prompt "User's username" USERNAME
+	prompt "User's username" USERNAME $(echo $FIRSTNAME.$LASTNAME  | tr '[A-Z]' '[a-z]')
 	prompt "User's email" EMAIL
 else
 	PROJECT="$1"

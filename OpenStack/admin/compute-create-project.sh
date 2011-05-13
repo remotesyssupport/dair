@@ -12,7 +12,9 @@ function usage {
 }
 
 function prompt {
-	read -p "$1 : " $2
+	set +u
+	read -e -i "$3" -p "$1 : " $2
+	set -u
 }
 
 function log {
@@ -29,17 +31,29 @@ function project_exists {
 }
 
 
-if [ "$#" -lt 4 ]; then
+if [ "$#" -lt 10 ]; then
 	usage
-	prompt "Project name: " PROJECT
-	prompt "Project administrator's first name: " FIRSTNAME
-	prompt "Project administrator's last name: " LASTNAME
-	prompt "Project administrator's email: " EMAIL
+	prompt "Project name" PROJECT
+	prompt "Project description" PROJECT_DESCRIPTION
+	prompt "Project administrator's first name" FIRSTNAME
+	prompt "Project administrator's last name" LASTNAME
+	prompt "Project administrator's email" EMAIL
+	prompt "Gigabyte quota" QUOTA_GIGABYTES 100
+	prompt "Floating IP quota" QUOTA_FLOATING_IPS 10
+	prompt "Instance quota" QUOTA_INSTANCES 10
+	prompt "Volume quota" QUOTA_VOLUMES 10
+	prompt "Cores quota" QUOTA_CORES 20
 else
 	PROJECT="$1"
-	FIRSTNAME="$2"
-	LASTNAME="$3"
-	EMAIL="$4"
+	PROJECT_DESCRIPTION="$2"
+	FIRSTNAME="$3"
+	LASTNAME="$4"
+	EMAIL="$5"
+	QUOTA_GIGABYTES="$6"
+	QUOTA_FLOATING_IPS="$7"
+	QUOTA_INSTANCES="$8"
+	QUOTA_VOLUMES="$9"
+	QUOTA_CORES="$10"
 fi
 
 # project administrators usernames follow DAIR convention
@@ -57,24 +71,32 @@ fi
 # Password reset
 $VENV $MANAGE passwordreset --email="$EMAIL"
 
-if [ "$(project_exists)" != "true" ]; then
-	# Create Project + assign user as project administrator
-	log "creating new project"
-	nova-manage project create $PROJECT $USERNAME  # [description]
-else
+if [ "$(project_exists)" == "true" ]; then
 	log "project $PROJECT already exists and has an administrator"
 	exit
 fi
 
-# Assign role netadmin
+# Create Project + assign user as project administrator
+log "creating new project $PROJECT"
+nova-manage project create "$PROJECT" "$USERNAME" "$PROJECT_DESCRIPTION"
+
+# Assign roles
+nova-manage role add $USERNAME netadmin
 nova-manage role add $USERNAME netadmin $PROJECT
+nova-manage role add $USERNAME sysadmin
+nova-manage role add $USERNAME sysadmin $PROJECT
 
-euca-authorize -P tcp -p 22 -s 0.0.0.0/0 default # ssh
-euca-authorize -P tcp -p 80 -s 0.0.0.0/0 default # http
-euca-authorize -P icmp -t -1:-1 default # ping
+CREDENTIALS=$(nova-manage user exports $USERNAME)
+SECRET_KEY=$(echo "$CREDENTIALS" | grep EC2_SECRET_KEY | cut -d"=" -f2)
+ACCESS_KEY=$(echo "$CREDENTIALS" | grep EC2_ACCESS_KEY | cut -d"=" -f2)
+ACCESS_KEY=$ACCESS_KEY:$PROJECT
 
-nova-manage project quota $PROJECT gigabytes 1000
-nova-manage project quota $PROJECT floating_ips 10
-nova-manage project quota $PROJECT instances 10
-nova-manage project quota $PROJECT volumes 10
-nova-manage project quota $PROJECT cores 20
+euca-authorize -S $SECRET_KEY -A $ACCESS_KEY -P tcp -p 22 -s 0.0.0.0/0 default # ssh
+euca-authorize -S $SECRET_KEY -A $ACCESS_KEY -P tcp -p 80 -s 0.0.0.0/0 default # http
+euca-authorize -S $SECRET_KEY -A $ACCESS_KEY -P icmp -t -1:-1 default # ping
+
+nova-manage project quota $PROJECT gigabytes $QUOTA_GIGABYTES
+nova-manage project quota $PROJECT floating_ips $QUOTA_FLOATING_IPS
+nova-manage project quota $PROJECT instances $QUOTA_INSTANCES
+nova-manage project quota $PROJECT volumes $QUOTA_VOLUMES
+nova-manage project quota $PROJECT cores $QUOTA_CORES
