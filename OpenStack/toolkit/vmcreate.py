@@ -7,6 +7,7 @@ A collection of functions to help create Eucalyptus virtual machines
 	calling this script
 """
 import os
+import os.path
 import boto
 import boto.ec2
 import time
@@ -108,12 +109,12 @@ def create_volume(size, zone='ceswp'):
 
 def attach_volume(volume, instance, device='/dev/vdb'):
 	"""Waits for both instance and volume to be ready before attaching"""
-	if not volume or not instance:
+	if not volume or not instance or os.path.exists(device):
 		return None
 
 	while not (instance.state.startswith('running') and volume.status.startswith('available')):
-		time.sleep(2)
-		volume = get_volume(volume.id) # refresh the status.  Seems to be a bug in 'update()'
+		time.sleep(1)
+		volume.update()
 		instance.update()
 		print "Instance %s: %s" % (instance.id, instance.state)
 		print "Volume %s: %s" %  (volume.id, volume.status)
@@ -126,7 +127,7 @@ def attach_volume(volume, instance, device='/dev/vdb'):
 	while not (volume.status.startswith('attached') or volume.status.startswith('in-use')):
 		time.sleep(1)
 		print "Volume %s: %s" %  (volume.id, volume.status)
-		volume = get_volume(volume.id)
+		volume.update()
 
 	return volume
 
@@ -134,6 +135,19 @@ def attach_volume(volume, instance, device='/dev/vdb'):
 def create_and_attach_volume(size, instance, device='/dev/vdb', zone='nova'):
 	volume = create_volume(size, zone)
 	return attach_volume(volume, instance, device)
+
+
+def detach_and_delete_volume(volume):
+	if not volume:
+		return None
+
+	if volume.status.startswith('attached') or volume.status.startswith('in-use'):
+		volume.detach()
+
+	while not volume.update().startswith('available'):
+		time.sleep(1)
+
+	volume.delete()
 
 
 def get_reservation(id):
@@ -170,11 +184,7 @@ def get_dns_names(reservation):
 def cleanup(volume=None, instance=None):
 	"""A convienience function to terminate a machine and delete a volume."""
 	if volume:
-		conn.detach_volume(volume.id, instance.id)
-		while volume.update() != 'available':
-			time.sleep(1)
-		conn.delete_volume(volume.id)
-
+		detach_and_delete_volume(volume)
 	if instance:
 		conn.terminate_instances([instance.id])
 
