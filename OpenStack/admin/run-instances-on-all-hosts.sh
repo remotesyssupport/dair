@@ -1,17 +1,28 @@
 #!/usr/bin/env bash
 
+function usage {
+	echo "usage: $0 <key pair> <ami>"
+	exit 1
+}
+
 if [ ! -n "$1" ]; then
-    "Please specify an AMI to run on all hosts"
-    exit 1
+    echo "Please specify a key pair"
+    usage
+fi
+
+if [ ! -n "$2" ]; then
+    echo "Please specify an AMI to run on all hosts"
+    usage
 fi
 
 #TODO: check for XXX and exit out if found
 
 HOSTS=`nova-manage service list | grep compute | sort | cut -f1 -d' '`
-AMI=$1
+KEY_PAIR=$1
+AMI=$2
 
 for host in $HOSTS; do
-    euca-run-instances -k admin-alberta -z nova:$host $AMI
+    euca-run-instances -k $KEY_PAIR -z nova:$host $AMI
 done
 
 echo "Waiting 10 seconds for instances to run"
