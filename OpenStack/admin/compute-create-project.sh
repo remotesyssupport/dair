@@ -1,6 +1,7 @@
 #! /bin/bash
 
 LOG="compute-create.log"
+ERR="compute-create-error.log"
 VENV="/usr/local/openstack-dashboard/trunk/openstack-dashboard/tools/with_venv.sh"
 MANAGE="/usr/local/openstack-dashboard/trunk/openstack-dashboard/dashboard/manage.py"
 PROJECT_LIST=$(nova-manage project list)
@@ -29,6 +30,10 @@ function project_exists {
 		fi
 	done
 }
+
+# we'll clear the error log, but hang on to the regular log"
+cat /dev/null > $ERR
+log "=============================================="
 
 
 if [ "$#" -lt 10 ]; then
@@ -62,14 +67,18 @@ USERNAME="$PROJECT-admin"
 log "project = '$PROJECT', first name = '$FIRSTNAME', last name = '$LASTNAME', username = '$USERNAME', email = '$EMAIL'"
 
 # Create User
-$VENV $MANAGE  createuser --username="$USERNAME" --email="$EMAIL" --firstname="$FIRSTNAME" --lastname="$LASTNAME" --noinput
+log "Creating user '$USERNAME'..."
+$VENV $MANAGE  createuser --username="$USERNAME" --email="$EMAIL" \
+	--firstname="$FIRSTNAME" --lastname="$LASTNAME" --noinput 1>>$LOG 2>>$ERR 
 if [ $? -ne 0 ]; then
 	log "error while creating user $USERNAME"
 	exit
 fi
 
 # Password reset
-$VENV $MANAGE passwordreset --email="$EMAIL"
+log "Resetting password..."
+log "Sending notification to '$EMAIL'..."
+$VENV $MANAGE passwordreset --email="$EMAIL" 1>>$LOG 2>>$ERR 
 
 if [ "$(project_exists)" == "true" ]; then
 	log "project $PROJECT already exists and has an administrator"
@@ -77,26 +86,36 @@ if [ "$(project_exists)" == "true" ]; then
 fi
 
 # Create Project + assign user as project administrator
-log "creating new project $PROJECT"
-nova-manage project create "$PROJECT" "$USERNAME" "$PROJECT_DESCRIPTION"
+log "Creating new project '$PROJECT'..."
+nova-manage project create "$PROJECT" "$USERNAME" "$PROJECT_DESCRIPTION" 1>>$LOG 2>>$ERR 
 
 # Assign roles
-nova-manage role add $USERNAME netadmin
-nova-manage role add $USERNAME netadmin $PROJECT
-nova-manage role add $USERNAME sysadmin
-nova-manage role add $USERNAME sysadmin $PROJECT
+log "Assigning netadmin role..."
+nova-manage role add $USERNAME netadmin 1>>$LOG 2>>$ERR 
+nova-manage role add $USERNAME netadmin $PROJECT 1>>$LOG 2>>$ERR 
+
+log "Assigning sysadmin role..."
+nova-manage role add $USERNAME sysadmin 1>>$LOG 2>>$ERR 
+nova-manage role add $USERNAME sysadmin $PROJECT 1>>$LOG 2>>$ERR 
 
 CREDENTIALS=$(nova-manage user exports $USERNAME)
 SECRET_KEY=$(echo "$CREDENTIALS" | grep EC2_SECRET_KEY | cut -d"=" -f2)
 ACCESS_KEY=$(echo "$CREDENTIALS" | grep EC2_ACCESS_KEY | cut -d"=" -f2)
 ACCESS_KEY=$ACCESS_KEY:$PROJECT
 
-euca-authorize -S $SECRET_KEY -A $ACCESS_KEY -P tcp -p 22 -s 0.0.0.0/0 default # ssh
-euca-authorize -S $SECRET_KEY -A $ACCESS_KEY -P tcp -p 80 -s 0.0.0.0/0 default # http
-euca-authorize -S $SECRET_KEY -A $ACCESS_KEY -P icmp -t -1:-1 default # ping
+log "Creating security group..."
+euca-authorize -S $SECRET_KEY -A $ACCESS_KEY -P tcp -p 22 -s 0.0.0.0/0 default 1>>$LOG 2>>$ERR 
+euca-authorize -S $SECRET_KEY -A $ACCESS_KEY -P tcp -p 80 -s 0.0.0.0/0 default 1>>$LOG 2>>$ERR 
+euca-authorize -S $SECRET_KEY -A $ACCESS_KEY -P icmp -t -1:-1 default 1>>$LOG 2>>$ERR 
 
-nova-manage project quota $PROJECT gigabytes $QUOTA_GIGABYTES
-nova-manage project quota $PROJECT floating_ips $QUOTA_FLOATING_IPS
-nova-manage project quota $PROJECT instances $QUOTA_INSTANCES
-nova-manage project quota $PROJECT volumes $QUOTA_VOLUMES
-nova-manage project quota $PROJECT cores $QUOTA_CORES
+log "Setting project quotas..."
+nova-manage project quota $PROJECT gigabytes $QUOTA_GIGABYTES 1>>$LOG 2>>$ERR 
+nova-manage project quota $PROJECT floating_ips $QUOTA_FLOATING_IPS 1>>$LOG 2>>$ERR 
+nova-manage project quota $PROJECT instances $QUOTA_INSTANCES 1>>$LOG 2>>$ERR 
+nova-manage project quota $PROJECT volumes $QUOTA_VOLUMES 1>>$LOG 2>>$ERR 
+nova-manage project quota $PROJECT cores $QUOTA_CORES 1>>$LOG 2>>$ERR 
+
+log "Done.  Congratulations!"
+log "Please review '$LOG' and '$ERR' for more details"
+log "=============================================="
+log ""
