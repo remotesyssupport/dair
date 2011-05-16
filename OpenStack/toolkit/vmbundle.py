@@ -64,8 +64,8 @@ mount_point_created = True
 
 if fs.f_bfree < fs.f_blocks / 2:
     # Calculate open device
-    result = utils.execute("ls " + DEVICE_PREFIX + "*")
-    devices = result[0].strip().split(" ")
+    result = utils.execute('ls ' + DEVICE_PREFIX + '*')
+    devices = result[0].strip().split(' ')
     last_device = devices[-1]
     last_device_letter = last_device[-1]
 
@@ -82,7 +82,7 @@ if fs.f_bfree < fs.f_blocks / 2:
  
     if volume:
         volume_created = True
-    else
+    else:
         print("Error creating volume")
         exit(1)
     
