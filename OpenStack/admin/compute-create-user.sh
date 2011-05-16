@@ -1,6 +1,7 @@
 #! /bin/bash
 
 LOG="compute-create.log"
+ERR="compute-create-error.log"
 VENV="/usr/local/openstack-dashboard/trunk/openstack-dashboard/tools/with_venv.sh"
 MANAGE="/usr/local/openstack-dashboard/trunk/openstack-dashboard/dashboard/manage.py"
 PROJECT_LIST=$(nova-manage project list)
@@ -30,6 +31,9 @@ function project_exists {
 	done
 }
 
+# we'll clear the error log, but hang on to the regular log"
+cat /dev/null > $ERR
+log "=============================================="
 
 if [ "$#" -lt 5 ]; then
 	usage
@@ -46,21 +50,39 @@ else
 	EMAIL="$5"
 fi
 
-log "project = '$PROJECT', first name = '$FIRSTNAME', last name = '$LASTNAME', username = '$USERNAME', email = '$EMAIL'"
+log "project = '$PROJECT', first name = '$FIRSTNAME', \
+last name = '$LASTNAME', username = '$USERNAME', email = '$EMAIL'"
 
-# Create User
-$VENV $MANAGE  createuser --username="$USERNAME" --email="$EMAIL" --firstname="$FIRSTNAME" --lastname="$LASTNAME" --noinput
+if [ "$(project_exists)" != "true" ]; then
+	log "project $PROJECT does not exist"
+	exit
+fi
+
+log "Creating user '$USERNAME'..."
+$VENV $MANAGE  createuser --username="$USERNAME" --email="$EMAIL" \
+	--firstname="$FIRSTNAME" --lastname="$LASTNAME" --noinput 1>>$LOG 2>>$ERR 
+
 if [ $? -ne 0 ]; then
 	log "error while creating user $USERNAME"
 	exit
 fi
 
-# Password reset
-$VENV $MANAGE passwordreset --email="$EMAIL"
+log "Resetting password..."
+log "Sending notification to '$EMAIL'..."
+$VENV $MANAGE passwordreset --email="$EMAIL" 1>>$LOG 2>>$ERR 
 
 log "adding $USERNAME to $PROJECT"
-nova-manage project add $PROJECT $USERNAME
+nova-manage project add $PROJECT $USERNAME 1>>$LOG 2>>$ERR 
 
-# Assign role netadmin
-nova-manage role add $USERNAME netadmin $PROJECT
+log "Assigning netadmin role..."
+nova-manage role add $USERNAME netadmin 1>>$LOG 2>>$ERR 
+nova-manage role add $USERNAME netadmin $PROJECT 1>>$LOG 2>>$ERR 
 
+log "Assigning sysadmin role..."
+nova-manage role add $USERNAME sysadmin 1>>$LOG 2>>$ERR 
+nova-manage role add $USERNAME sysadmin $PROJECT 1>>$LOG 2>>$ERR 
+
+log "Done.  Congratulations!"
+log "Please review '$LOG' and '$ERR' for more details"
+log "=============================================="
+log ""
