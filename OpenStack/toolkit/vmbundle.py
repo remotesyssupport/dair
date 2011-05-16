@@ -20,7 +20,6 @@ mount_point_created = False
 volume_created = False
 volume_mounted = False
 
-
 @atexit.register
 def cleanup():
     if volume_mounted:
@@ -32,7 +31,7 @@ def cleanup():
 
 
 if not vminit.isRoot():
-    print "You need to run this script as root to bundle a VM."
+    print("You need to run this script as root to bundle a VM.")
     exit(1)
 
 custom_image_name = raw_input("Image name (%(DEFAULT_IMAGE_NAME)s): " % locals())
@@ -79,12 +78,17 @@ if fs.f_bfree < fs.f_blocks / 2:
 
     print("\n***** Create and attach volume to %(device)s *****" % locals())
     volume = vmcreate.create_and_attach_volume(disk_size_in_GBs, instance, device)
-
-    if not volume:
+    print(volume.attachment_state())
+ 
+    if volume:
+        volume_created = True
+    else
         print("Error creating volume")
-        cleanup()
-
-    volume_created = True
+        exit(1)
+    
+    if not os.path.exists(device):
+        print("Error attaching volume")
+        exit(1) 
 
     print("\n***** Making filesystem on volume *****")
     utils.execute("mke2fs -q -t ext3 %(device)s" % locals())
@@ -98,12 +102,8 @@ dirs_to_exclude = "%(mount_point)s,/root/.ssh,/ubuntu/.ssh" % locals()
 
 print("\n***** Excluding directories %(dirs_to_exclude)s *****" % locals())
 
-if ramdisk_id == '':
-    ramdisk_opt = ''
-else:
-    ramdisk_opt = "--ramdisk " + ramdisk_id
-
 print("\n***** Bundling volume *****")
+ramdisk_opt = '' if ramdisk_id == '' else '--ramdisk ' + ramdisk_id
 #utils.execute("euca-bundle-vol --no-inherit --kernel %(kernel_id)s %(ramdisk_opt)s -d %(mount_point)s -r x86_64 -p %(image_name)s -s %(disk_size_in_MBs)s -e %(dirs_to_exclude)s" % locals())
 
 print("\n***** Uploading bundle *****")
@@ -111,6 +111,4 @@ print("\n***** Uploading bundle *****")
 
 print("\n***** Registering bundle *****")
 #utils.execute("euca-register %(bucket_name)s/%(image_name)s.manifest.xml" % locals())
-
-cleanup()
 
