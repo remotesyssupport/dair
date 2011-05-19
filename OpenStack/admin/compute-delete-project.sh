@@ -1,23 +1,37 @@
 #!/usr/bin/env bash
 
+if [[ $EUID -ne 0 ]]; then
+	echo "This script must be run as root"
+	exit 1
+fi
+
 if [ ! -n "$1" ]; then
     "Please specify a project to delete"
     exit 1
 fi
 
 if [ -z $EC2_ACCESS_KEY ]; then
-	echo "you need to set your cloud credentials."
-	echo "try sourcing your novarc file"
+	echo "You need to set your cloud credentials"
+	echo "Try sourcing your novarc file"
 	exit 1
 fi
+
 PROJECT=$1
 SAFE_PROJECT="	$PROJECT	"
 
+# Use project admin's credentials
+KEY=$EC2_ACCESS_KEY
+`nova-manage user exports $PROJECT-admin`
+
+if [ "$KEY" = "$EC2_ACCESS_KEY" ]; then
+	echo "Bad project name or admin user is not $PROJECT-admin"
+	exit 1
+fi
+
 # Images
 # NOTE(vish): leave public images because others may be using them
-euca-describe-images | grep "	private	" | -cut -f2 | xargs -n1 euca-deregister
-
-# TODO: need to delete the buckets of the images
+euca-describe-images | grep "	private	" | cut -f2 | xargs -n1 euca-deregister
+sleep 2
 
 # Addresses
 euca-describe-addresses | grep "$PROJECT" | cut -f2 | xargs -n1 euca-disassociate-address
