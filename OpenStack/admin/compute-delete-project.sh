@@ -17,16 +17,17 @@ if [ -z $EC2_ACCESS_KEY ]; then
 fi
 
 PROJECT=$1
-SAFE_PROJECT="	$PROJECT	"
+#SAFE_PROJECT="	$PROJECT	"
 
 # Use project admin's credentials
-KEY=$EC2_ACCESS_KEY
-`nova-manage user exports $PROJECT-admin`
+EXPORTS=$(nova-manage user exports $PROJECT-admin)
 
-if [ "$KEY" = "$EC2_ACCESS_KEY" ]; then
-	echo "Bad project name or admin user is not $PROJECT-admin"
+if [ ! $(echo "$EXPORTS" | wc -l) -eq 2 ]; then
+	echo "Bad project name or project admin is not $PROJECT-admin"
 	exit 1
 fi
+
+$EXPORTS
 
 # Images
 # NOTE(vish): leave public images because others may be using them
@@ -34,18 +35,22 @@ euca-describe-images | grep "	private	" | cut -f2 | xargs -n1 euca-deregister
 sleep 2
 
 # Addresses
-euca-describe-addresses | grep "$PROJECT" | cut -f2 | xargs -n1 euca-disassociate-address
+#euca-describe-addresses | grep "$PROJECT" | cut -f2 | xargs -n1 euca-disassociate-address
+euca-describe-addresses | cut -f2 | xargs -n1 euca-disassociate-address
 sleep 2
-euca-describe-addresses | grep "$PROJECT" | cut -f2 | xargs -n1 euca-release-address
+#euca-describe-addresses | grep "$PROJECT" | cut -f2 | xargs -n1 euca-release-address
+euca-describe-addresses | cut -f2 | xargs -n1 euca-release-address
 
 # Volumes
-euca-describe-volumes | grep "$SAFE_PROJECT" | cut -f2 | xargs -n1 euca-detach-volume
+#euca-describe-volumes | grep "$SAFE_PROJECT" | cut -f2 | xargs -n1 euca-detach-volume
+euca-describe-volumes | cut -f2 | xargs -n1 euca-detach-volume
 sleep 2
-euca-describe-volumes | grep "$SAFE_PROJECT" | cut -f2 | xargs -n1 euca-delete-volume
-sleep 2
+#euca-describe-volumes | grep "$SAFE_PROJECT" | cut -f2 | xargs -n1 euca-delete-volume
+euca-describe-volumes | cut -f2 | xargs -n1 euca-delete-volume
 
 # Instances
-euca-describe-instances | grep "$SAFE_PROJECT" | cut -f2 | xargs euca-terminate-instances
+#euca-describe-instances | grep "$SAFE_PROJECT" | cut -f2 | xargs euca-terminate-instances
+euca-describe-instances | cut -f2 | xargs euca-terminate-instances
 sleep 2
 
 # Project
