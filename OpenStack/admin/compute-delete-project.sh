@@ -20,7 +20,6 @@ fi
 
 # Use project admin's credentials
 USER="$PROJECT-admin"
-
 EXPORTS=$(nova-manage user exports $USER)
 
 if [ ! $(echo "$EXPORTS" | wc -l) -eq 2 ]; then
@@ -37,6 +36,7 @@ if [[ $ANSWER != 'y' && $ANSWER != 'Y' ]]; then
 fi
 
 $EXPORTS
+EC2_ACCESS_KEY=$EC2_ACCESS_KEY:$PROJECT
 
 echo "Deleting images..."
 IMAGES=$(euca-describe-images | grep "	private	" | cut -f2)
@@ -85,8 +85,11 @@ fi
 #	echo $SNAPSHOTS | xargs -n1 euca-delete-snapshot
 #fi
 
+echo "Deleting project..."
 nova-manage project delete $PROJECT
 nova-manage project scrub $PROJECT
+
+echo "Deleting project admin..."
 nova-manage user delete $USER
 
 echo "Project $PROJECT deleted.  Please note that user accounts must be deleted manually."
