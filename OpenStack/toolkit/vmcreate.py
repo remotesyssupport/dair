@@ -33,6 +33,12 @@ conn = boto.connect_ec2(aws_access_key_id=EC2_ACCESS_KEY,
 						port=ec2_url_parsed.port,
 						path=ec2_url_parsed.path) 
 
+class VolumeError(Exception):
+	def __init__(self, msg):
+		self.msg = msg
+	def __str__(self):
+		return repr(self.msg)
+
 def image_map():
 	map = {}
 	images = conn.get_all_images()
@@ -101,40 +107,41 @@ def run_instance(bucket, keyname, instance_type, zone='ceswp', user_data=None, a
 	return None
 
 
-def create_volume(size, zone='ceswp'):
+def create_volume(size, zone='nova'):
 	"""Returns a volume of 'size' GBs"""
 	volume = conn.create_volume(int(size), zone)
+
+	while not volume.update().startswith('available'):
+		if volume.status.startswith('error'):
+			raise VolumeError('Volume creation failed')
+
 	return volume
 
 
 def attach_volume(volume, instance, device='/dev/vdb'):
-	"""Waits for both instance and volume to be ready before attaching"""
-	if not volume or not instance or os.path.exists(device):
-		return None
-
-	while not (instance.state.startswith('running') and volume.status.startswith('available')):
-		time.sleep(1)
-		volume.update()
-		instance.update()
-		print "Instance %s: %s" % (instance.id, instance.state)
-		print "Volume %s: %s" %  (volume.id, volume.status)
-		print ""
+	"""Attaches volume to instance, both of which must be available"""
+	if not volume or not instance or os.path.exists(device) or not instances.state.startswith('running') or not volume.status.startswith('available'):
+		return False
 
 	volume.attach(instance.id, device)
 
-	print "Volume %s: %s" %  (volume.id, volume.status)
+	#print "Volume %s: %s" %  (volume.id, volume.status)
 
 	while not (volume.status.startswith('attached') or volume.status.startswith('in-use')):
+		if volume.status.startswith('error'):
+			raise VolumeError('Volume in error state')
 		time.sleep(1)
-		print "Volume %s: %s" %  (volume.id, volume.status)
+		#print "Volume %s: %s" % (volume.id, volume.status)
 		volume.update()
 
-	return volume
+	return True
 
 
 def create_and_attach_volume(size, instance, device='/dev/vdb', zone='nova'):
+	"""Creates and attaches volume to instance, must check returned volume's state"""
 	volume = create_volume(size, zone)
-	return attach_volume(volume, instance, device)
+	attach_volume(volume, instance, device)
+	return volume
 
 
 def detach_and_delete_volume(volume):
