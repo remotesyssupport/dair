@@ -28,10 +28,10 @@ if [ ! $(echo "$EXPORTS" | wc -l) -eq 2 ]; then
 	exit 1
 fi
 
-echo "About to delete project $PROJECT, continue? (y/N)"
+echo -n "About to delete project $PROJECT, continue? (y/N) "
 read ANSWER
 
-if [[ $ANSWER != 'y' && $ANSWER != 'Y' ]]
+if [[ $ANSWER != 'y' && $ANSWER != 'Y' ]]; then
 	echo "Aborting..."
 	exit 0
 fi
