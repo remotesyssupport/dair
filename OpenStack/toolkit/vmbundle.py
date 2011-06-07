@@ -84,12 +84,11 @@ if not vminit.isRoot():
 	print("You need to run this script as root to bundle a VM.")
 	exit(1)
 
-custom_bucket_name = raw_input("\nBucket name (%(DEFAULT_BUCKET_NAME)s): " % locals()).strip()
+custom_bucket_name = raw_input("Bucket name (%(DEFAULT_BUCKET_NAME)s): " % locals()).strip()
 bucket_name = custom_bucket_name if custom_bucket_name else DEFAULT_BUCKET_NAME
 
 custom_image_name = raw_input("\nImage name (%(DEFAULT_IMAGE_NAME)s): " % locals()).strip()
 image_name = custom_image_name if custom_image_name else DEFAULT_IMAGE_NAME
-image_name += '.manifest.xml'
 
 kernel_name = ''
 custom_kernel_path = raw_input("\nKernel path (leave blank unless you have a custom kernel): ").strip()
@@ -98,7 +97,7 @@ if custom_kernel_path and not os.path.exists(custom_kernel_path):
 	exit(1)
 if custom_kernel_path:
 	default_kernel_name = image_name + '-' + custom_kernel_path.split('/')[-1]
-	custom_kernel_name = raw_input("\nKernel name (%(default_kernel_name)): " % locals()).strip()
+	custom_kernel_name = raw_input("\nKernel name (%(default_kernel_name)s): " % locals()).strip()
 	kernel_name = custom_kernel_name if custom_kernel_name else default_kernel_name
 	kernel_name += '.manifest.xml'
 
@@ -109,11 +108,11 @@ if custom_ramdisk_path and not os.path.exists(custom_ramdisk_path):
 	exit(1)
 if custom_ramdisk_path:
 	default_ramdisk_name = image_name + '-' + custom_ramdisk_path.split('/')[-1]
-	custom_ramdisk_name = raw_input("\nRamdisk name (%(default_ramdisk_name)): " % locals()).strip()
+	custom_ramdisk_name = raw_input("\nRamdisk name (%(default_ramdisk_name)s): " % locals()).strip()
 	ramdisk_name = custom_ramdisk_name if custom_ramdisk_name else default_ramdisk_name
 	ramdisk_name += '.manifest.xml'
 
-check_for_collisions(image_name, kernel_name, ramdisk_name)
+check_for_collisions(image_name + '.manifest.xml', kernel_name, ramdisk_name)
 
 fs = os.statvfs('/')
 disk_size_in_GBs = int(round((fs.f_blocks * fs.f_frsize) / GBs))
@@ -175,7 +174,7 @@ ramdisk_opt = '' if ramdisk_id == '' else '--ramdisk ' + ramdisk_id
 utils.execute("euca-bundle-vol --no-inherit %(kernel_opt)s %(ramdisk_opt)s -d %(mount_point)s -r x86_64 -p %(image_name)s -s %(disk_size_in_MBs)s -e %(dirs_to_exclude)s" % locals())
 
 print("\n***** Uploading filesystem *****")
-utils.execute("euca-upload-bundle -b %(bucket_name)s -m %(mount_point)s/%(image_name)s" % locals())
+utils.execute("euca-upload-bundle -b %(bucket_name)s -m %(mount_point)s/%(image_name)s.manifest.xml" % locals())
 
 print("\n***** Registering filesystem *****")
-utils.execute("euca-register %(bucket_name)s/%(image_name)s" % locals())
+utils.execute("euca-register %(bucket_name)s/%(image_name)s.manifest.xml" % locals())
