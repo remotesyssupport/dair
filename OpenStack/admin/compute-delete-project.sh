@@ -95,7 +95,7 @@ echo "Deleting users..."
 LDAP_ADDR=$(sed -n 's/--ldap_url=ldap:\/\/\(.\+\)/\1/p' $NOVA_CONF)
 LDAP_USER=$(sed -n 's/--ldap_user_dn=\(.\+\)/\1/p' $NOVA_CONF)
 LDAP_PW=$(sed -n 's/--ldap_password=\(.\+\)/\1/p' $NOVA_CONF)
-LDAP_SEARCHBASE="ou=Group,$(echo $LDAP_USER | grep -o 'dc=.\+')"
+LDAP_SEARCHBASE="ou=Groups,$(echo $LDAP_USER | grep -o 'dc=.\+')"
 USERS=$(ldapsearch -b "cn=$PROJECT,$LDAP_SEARCHBASE" -D $LDAP_USER -h $LDAP_ADDR -xw $LDAP_PW | sed -n 's/member: uid=\([^,]\+\).\+/\1/p' | grep -xv $USER | sort | uniq)
 
 if [[ $USERS != '' ]]; then
