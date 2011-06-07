@@ -46,11 +46,13 @@ def check_for_collisions(image_name, kernel_name, ramdisk_name):
 		elif image.location == bucket_name + '/' + kernel_name:
 			overwrite = raw_input("\nKernel already exists, overwrite? (y/N) ")
 		elif image.location == bucket_name + '/' + ramdisk_name:
-			overwite = raw_input("\nRamdisk already exists, overwrite? (y/N) ")
+			overwrite = raw_input("\nRamdisk already exists, overwrite? (y/N) ")
+		else:
+			continue
 	
 		if overwrite == 'y' or overwrite == 'Y':
 			image.deregister()
-		elif overwrite:
+		else:
 			exit(0)
 
 def get_volume(size_in_GBs, instance, mount_point):
