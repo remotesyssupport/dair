@@ -35,56 +35,32 @@ def cleanup():
 def rand_suffix():
 	return ''.join(random.sample(string.lowercase, 2))
 
+def check_for_collisions(image_name, kernel_name, ramdisk_name):
+	images = vmcreate.conn.get_all_images()
 
-if not vminit.isRoot():
-	print("You need to run this script as root to bundle a VM.")
-	exit(1)
+	for image in images:
+		overwrite = ''
 
-custom_image_name = raw_input("Image name (%(DEFAULT_IMAGE_NAME)s): " % locals())
-custom_bucket_name = raw_input("\nBucket name (%(DEFAULT_BUCKET_NAME)s): " % locals())
-custom_kernel_path = raw_input("\nKernel path (leave blank unless you have a custom kernel): ")
-custom_ramdisk_path = raw_input("\nRamdisk path (leave blank unless you have a custom ramdisk): ")
+		if image.location == bucket_name + '/' + image_name:
+			overwrite = raw_input("\nImage already exists, overwrite? (y/N) ")
+		elif image.location == bucket_name + '/' + kernel_name:
+			overwrite = raw_input("\nKernel already exists, overwrite? (y/N) ")
+		elif image.location == bucket_name + '/' + ramdisk_name:
+			overwite = raw_input("\nRamdisk already exists, overwrite? (y/N) ")
+	
+		if overwrite == 'y' or overwrite == 'Y':
+			image.deregister()
+		elif overwrite:
+			exit(0)
 
-if custom_kernel_path and not os.path.exists(custom_kernel_path):
-	print("%(custom_kernel_path)s does not exist" % locals())
-	exit(1)
-if custom_ramdisk_path and not os.path.exists(custom_ramdisk_path):
-	print("%(custom_ramdisk_path)s does not exist" %locals())
-	exit(1)
-
-image_name = custom_image_name if custom_image_name else DEFAULT_IMAGE_NAME
-bucket_name = custom_bucket_name if custom_bucket_name else DEFAULT_BUCKET_NAME
-
-fs = os.statvfs('/')
-disk_size_in_GBs = int(round((fs.f_blocks * fs.f_frsize) / GBs))
-disk_size_in_MBs = int(round((fs.f_blocks * fs.f_frsize) / MBs))
-
-print("\n***** Getting metadata *****")
-metadata = boto.utils.get_instance_metadata()
-instance_id = metadata['instance-id']
-instance = vmcreate.get_instance(instance_id)
-kernel_id = metadata['kernel-id']
-ramdisk_id = metadata['ramdisk-id']
-
-mount_point = MOUNT_POINT_PREFIX
-
-while os.path.exists(mount_point):
-	mount_point = MOUNT_POINT_PREFIX + rand_suffix()
-
-print("\n***** Creating mount point %(mount_point)s *****" % locals())
-utils.execute("mkdir -p %(mount_point)s" % locals())
-mount_point_created = True
-
-# Attach volume for bundling if low on space
-if fs.f_bfree < fs.f_blocks / 2:
+def get_volume(size_in_GBs, instance, mount_point):
 	device = DEVICE_PREFIX + rand_suffix()
 
 	while os.path.exists(device):
 		device = DEVICE_PREFIX + rand_suffix()
 
 	print("\n***** Creating and attaching volume to %(device)s *****" % locals())
-	volume = vmcreate.create_and_attach_volume(disk_size_in_GBs, instance, device)
-	print(volume.attachment_state())
+	new_volume = vmcreate.create_and_attach_volume(size_in_GBs, instance, device)
  
 	volume_created = True
 
@@ -100,27 +76,106 @@ if fs.f_bfree < fs.f_blocks / 2:
 
 	volume_mounted = True
 
-dirs_to_exclude = "/mnt,/tmp,/root/.ssh,/ubuntu/.ssh" % locals()
-print("\n***** Excluding directories %(dirs_to_exclude)s *****" % locals())
+	return new_volume
+
+
+
+if not vminit.isRoot():
+	print("You need to run this script as root to bundle a VM.")
+	exit(1)
+
+custom_bucket_name = raw_input("\nBucket name (%(DEFAULT_BUCKET_NAME)s): " % locals()).strip()
+bucket_name = custom_bucket_name if custom_bucket_name else DEFAULT_BUCKET_NAME
+
+custom_image_name = raw_input("\nImage name (%(DEFAULT_IMAGE_NAME)s): " % locals()).strip()
+image_name = custom_image_name if custom_image_name else DEFAULT_IMAGE_NAME
+image_name += '.manifest.xml'
+
+kernel_name = ''
+custom_kernel_path = raw_input("\nKernel path (leave blank unless you have a custom kernel): ").strip()
+if custom_kernel_path and not os.path.exists(custom_kernel_path):
+	print("%(custom_kernel_path)s does not exist" % locals())
+	exit(1)
+if custom_kernel_path:
+	default_kernel_name = image_name + '-' + custom_kernel_path.split('/')[-1]
+	custom_kernel_name = raw_input("\nKernel name (%(default_kernel_name)): " % locals()).strip()
+	kernel_name = custom_kernel_name if custom_kernel_name else default_kernel_name
+	kernel_name += '.manifest.xml'
+
+ramdisk_name = ''
+custom_ramdisk_path = raw_input("\nRamdisk path (leave blank unless you have a custom ramdisk): ").strip()
+if custom_ramdisk_path and not os.path.exists(custom_ramdisk_path):
+	print("%(custom_ramdisk_path)s does not exist" % locals())
+	exit(1)
+if custom_ramdisk_path:
+	default_ramdisk_name = image_name + '-' + custom_ramdisk_path.split('/')[-1]
+	custom_ramdisk_name = raw_input("\nRamdisk name (%(default_ramdisk_name)): " % locals()).strip()
+	ramdisk_name = custom_ramdisk_name if custom_ramdisk_name else default_ramdisk_name
+	ramdisk_name += '.manifest.xml'
+
+check_for_collisions(image_name, kernel_name, ramdisk_name)
+
+fs = os.statvfs('/')
+disk_size_in_GBs = int(round((fs.f_blocks * fs.f_frsize) / GBs))
+disk_size_in_MBs = int(round((fs.f_blocks * fs.f_frsize) / MBs))
+
+print("\n***** Getting metadata *****")
+metadata = boto.utils.get_instance_metadata()
+instance_id = metadata['instance-id']
+instance = vmcreate.get_instance(instance_id)
+kernel_id = metadata['kernel-id']
+try:
+	ramdisk_id = metadata['ramdisk-id']
+except KeyError:
+	ramdisk_id = ''
+
+mount_point = MOUNT_POINT_PREFIX
+while os.path.exists(mount_point):
+	mount_point = MOUNT_POINT_PREFIX + rand_suffix()
+
+print("\n***** Creating mount point %(mount_point)s *****" % locals())
+utils.execute("mkdir -p %(mount_point)s" % locals())
+mount_point_created = True
+
+if fs.f_bfree < fs.f_blocks / 2:
+	volume = get_volume(disk_size_in_GBs, instance, mount_point)
 
 if custom_kernel_path:
-	kernel_name = custom_kernel_path.split('/')[-1] + '.manifest/xml'
+	kernel_bundle_path = mount_point + '/' + custom_kernel_path.split('/')[-1] + '.manifest.xml'
+
+	print("\n***** Bundling kernel *****")
 	utils.execute("euca-bundle-image -i %(custom_kernel_path)s -d %(mount_point)s --kernel true" % locals())
+
+	print("\n***** Uploading kernel *****")
+	utils.execute("mv %(kernel_bundle_path)s %(mount_point)s/%(kernel_name)s" % locals())
 	utils.execute("euca-upload-bundle -b %(bucket_name)s -m %(mount_point)s/%(kernel_name)s" % locals())
+
+	print("\n***** Registering kernel *****")
 	kernel_id = utils.execute("euca-register %(bucket_name)s/%(kernel_name)s" % locals())[0].split()[1]
+
 if custom_ramdisk_path:
-	ramdisk_name = custom_ramdisk_path.split('/')[-1]
+	ramdisk_bundle_path = mount_point + '/' + custom_ramdisk_path.split('/')[-1] + '.manifest.xml'
+
+	print("\n***** Bundling ramdisk *****")
 	utils.execute("euca-bundle-image -i %(custom_ramdisk_path)s -d %(mount_point)s --ramdisk true" % locals())
+
+	print("\n***** Uploading ramdisk *****")
+	utils.execute("mv %(ramdisk_bundle_path)s %(mount_point)s/%(ramdisk_name)s" % locals())
 	utils.execute("euca-upload-bundle -b %(bucket_name)s -m %(mount_point)s/%(ramdisk_name)s" % locals())
+
+	print("\n***** Registering ramdisk *****")
 	ramdisk_id = utils.execute("euca-register %(bucket_name)s/%(ramdisk_name)s" % locals())[0].split()[1]
+
+dirs_to_exclude = "/mnt,/tmp,/root/.ssh,/ubuntu/.ssh" % locals()
+print("\n***** Excluding directories %(dirs_to_exclude)s *****" % locals())
 
 print("\n***** Bundling filesystem *****")
 kernel_opt = '' if kernel_id == '' else '--kernel ' + kernel_id
 ramdisk_opt = '' if ramdisk_id == '' else '--ramdisk ' + ramdisk_id
 utils.execute("euca-bundle-vol --no-inherit %(kernel_opt)s %(ramdisk_opt)s -d %(mount_point)s -r x86_64 -p %(image_name)s -s %(disk_size_in_MBs)s -e %(dirs_to_exclude)s" % locals())
 
-print("\n***** Uploading filesystem bundle *****")
-utils.execute("euca-upload-bundle -b %(bucket_name)s -m %(mount_point)s/%(image_name)s.manifest.xml" % locals())
+print("\n***** Uploading filesystem *****")
+utils.execute("euca-upload-bundle -b %(bucket_name)s -m %(mount_point)s/%(image_name)s" % locals())
 
-print("\n***** Registering filesystem bundle *****")
-utils.execute("euca-register %(bucket_name)s/%(image_name)s.manifest.xml" % locals())
+print("\n***** Registering filesystem *****")
+utils.execute("euca-register %(bucket_name)s/%(image_name)s" % locals())
