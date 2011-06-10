@@ -62,9 +62,9 @@ def get_volume(size_in_GBs, instance, mount_point):
 		device = DEVICE_PREFIX + rand_suffix()
 
 	print("\n***** Creating and attaching volume to %(device)s *****" % locals())
-	new_volume = vmcreate.create_and_attach_volume(size_in_GBs, instance, device)
+	volume = vmcreate.create_and_attach_volume(size_in_GBs, instance, device)
  
-	volume_created = True
+	global volume_created = True
 
 	if not os.path.exists(device):
 		print("Error attaching volume")
@@ -76,9 +76,9 @@ def get_volume(size_in_GBs, instance, mount_point):
 	print("\n***** Mounting volume to %(mount_point)s *****" % locals())
 	utils.execute("mount %(device)s %(mount_point)s" % locals())
 
-	volume_mounted = True
+	global volume_mounted = True
 
-	return new_volume
+	return volume
 
 
 
