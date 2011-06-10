@@ -120,7 +120,7 @@ def create_volume(size, zone='nova'):
 
 def attach_volume(volume, instance, device='/dev/vdb'):
 	"""Attaches volume to instance, both of which must be available"""
-	if not volume or not instance or os.path.exists(device) or not instances.state.startswith('running') or not volume.status.startswith('available'):
+	if not volume or not instance or os.path.exists(device) or not instance.state.startswith('running') or not volume.status.startswith('available'):
 		return False
 
 	volume.attach(instance.id, device)
