@@ -56,15 +56,17 @@ def check_for_collisions(image_name, kernel_name, ramdisk_name):
 			exit(0)
 
 def get_volume(size_in_GBs, instance, mount_point):
+	global volume_created
+	global volume_mounted
+	
 	device = DEVICE_PREFIX + rand_suffix()
-
 	while os.path.exists(device):
 		device = DEVICE_PREFIX + rand_suffix()
 
 	print("\n***** Creating and attaching volume to %(device)s *****" % locals())
 	volume = vmcreate.create_and_attach_volume(size_in_GBs, instance, device)
  
-	global volume_created = True
+	volume_created = True
 
 	if not os.path.exists(device):
 		print("Error attaching volume")
@@ -76,7 +78,7 @@ def get_volume(size_in_GBs, instance, mount_point):
 	print("\n***** Mounting volume to %(mount_point)s *****" % locals())
 	utils.execute("mount %(device)s %(mount_point)s" % locals())
 
-	global volume_mounted = True
+	volume_mounted = True
 
 	return volume
 
