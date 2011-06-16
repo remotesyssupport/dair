@@ -8,8 +8,6 @@ import utils
 import vmcreate
 import vminit
 import atexit
-import string
-import random
 
 GBs = 1024 * 1024 * 1024
 MBs = 1024 * 1024
@@ -18,8 +16,10 @@ DEFAULT_IMAGE_NAME = "new-image"
 DEFAULT_BUCKET_NAME = "my-bucket"
 
 mount_point_created = False
+mount_point = None
 volume_created = False
 volume_mounted = False
+volume = None
 
 @atexit.register
 def cleanup():
@@ -54,11 +54,12 @@ def check_for_collisions(image_name, kernel_name, ramdisk_name):
 def get_volume(size_in_GBs, instance, mount_point):
 	global volume_created
 	global volume_mounted
-	
+	global volume
+
 	devices_before = set(utils.execute('ls /dev | grep -E vd[a-z][a-z]?')[0].split(\n))
 
 	print("\n***** Creating and attaching volume *****")
-	volume = vmcreate.create_and_attach_volume(size_in_GBs, instance, '/dev/vdb')
+	volume = vmcreate.create_and_attach_volume(size_in_GBs, instance, '/dev/vdzz')
 	volume_created = True	
 	
 	devices_after = set(utils.execute('ls /dev | grep -E vd[a-z][a-z]?')[0].split(\n))
@@ -68,7 +69,7 @@ def get_volume(size_in_GBs, instance, mount_point):
 		print("Error attaching volume")
 		exit(1)
 
-	device = new_devices.pop()
+	device = '/dev/' + new_devices.pop()
 
 	print("\n***** Making filesystem on volume *****")
 	utils.execute("mkfs -t ext3 %(device)s" % locals())
@@ -76,8 +77,6 @@ def get_volume(size_in_GBs, instance, mount_point):
 	print("\n***** Mounting volume to %(mount_point)s *****" % locals())
 	utils.execute("mount %(device)s %(mount_point)s" % locals())
 	volume_mounted = True
-
-	return volume
 
 
 
@@ -133,14 +132,14 @@ mount_point = MOUNT_POINT_PREFIX
 i = 0
 while os.path.exists(mount_point):
 	mount_point = MOUNT_POINT_PREFIX + str(i)
-	i++
+	i += 1
 
 print("\n***** Creating mount point %(mount_point)s *****" % locals())
 utils.execute("mkdir -p %(mount_point)s" % locals())
 mount_point_created = True
 
 if fs.f_bfree < fs.f_blocks / 2:
-	volume = get_volume(disk_size_in_GBs, instance, mount_point)
+	get_volume(disk_size_in_GBs, instance, mount_point)
 
 if custom_kernel_path:
 	kernel_bundle_path = mount_point + '/' + custom_kernel_path.split('/')[-1] + '.manifest.xml'
