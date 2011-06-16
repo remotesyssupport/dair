@@ -170,6 +170,8 @@ if custom_ramdisk_path:
 dirs_to_exclude = "/mnt,/tmp,/root/.ssh,/ubuntu/.ssh,/var/lib/dhclient,/var/lib/dhcp3" % locals()
 print("\n***** Excluding directories %(dirs_to_exclude)s *****" % locals())
 
+utils.execute("sed -i 's/\S\+\s\+\/\s\+/\/dev/vda \/ /' /etc/fstab")
+
 print("\n***** Bundling filesystem *****")
 kernel_opt = '' if kernel_id == '' else '--kernel ' + kernel_id
 ramdisk_opt = '' if ramdisk_id == '' else '--ramdisk ' + ramdisk_id
