@@ -167,7 +167,7 @@ if custom_ramdisk_path:
 	print("\n***** Registering ramdisk *****")
 	ramdisk_id = utils.execute("euca-register %(bucket_name)s/%(ramdisk_name)s" % locals())[0].split()[1]
 
-dirs_to_exclude = "/mnt,/tmp,/root/.ssh,/ubuntu/.ssh" % locals()
+dirs_to_exclude = "/mnt,/tmp,/root/.ssh,/ubuntu/.ssh,/var/lib/dhclient,/var/lib/dhcp3" % locals()
 print("\n***** Excluding directories %(dirs_to_exclude)s *****" % locals())
 
 print("\n***** Bundling filesystem *****")
