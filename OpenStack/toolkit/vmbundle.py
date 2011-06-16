@@ -13,7 +13,6 @@ import random
 
 GBs = 1024 * 1024 * 1024
 MBs = 1024 * 1024
-DEVICE_PREFIX = "/dev/vd"
 MOUNT_POINT_PREFIX = "/mnt/vmbundle"
 DEFAULT_IMAGE_NAME = "new-image"
 DEFAULT_BUCKET_NAME = "my-bucket"
@@ -32,9 +31,6 @@ def cleanup():
 	if mount_point_created:
 		utils.execute("rm -rf " + mount_point)
 
-def rand_suffix():
-	return ''.join(random.sample(string.lowercase, 2))
-
 def check_for_collisions(image_name, kernel_name, ramdisk_name):
 	images = vmcreate.conn.get_all_images()
 
@@ -44,9 +40,9 @@ def check_for_collisions(image_name, kernel_name, ramdisk_name):
 		if image.location == bucket_name + '/' + image_name:
 			overwrite = raw_input("\nImage already exists, overwrite? (y/N) ")
 		elif image.location == bucket_name + '/' + kernel_name:
-			overwrite = raw_input("\nKernel already exists, overwrite? (y/N) ")
+			overwrite = raw_input("Kernel already exists, overwrite? (y/N) ")
 		elif image.location == bucket_name + '/' + ramdisk_name:
-			overwrite = raw_input("\nRamdisk already exists, overwrite? (y/N) ")
+			overwrite = raw_input("Ramdisk already exists, overwrite? (y/N) ")
 		else:
 			continue
 	
@@ -59,25 +55,26 @@ def get_volume(size_in_GBs, instance, mount_point):
 	global volume_created
 	global volume_mounted
 	
-	device = DEVICE_PREFIX + rand_suffix()
-	while os.path.exists(device):
-		device = DEVICE_PREFIX + rand_suffix()
+	devices_before = set(utils.execute('ls /dev | grep -E vd[a-z][a-z]?')[0].split(\n))
 
-	print("\n***** Creating and attaching volume to %(device)s *****" % locals())
-	volume = vmcreate.create_and_attach_volume(size_in_GBs, instance, device)
- 
-	volume_created = True
+	print("\n***** Creating and attaching volume *****")
+	volume = vmcreate.create_and_attach_volume(size_in_GBs, instance, '/dev/vdb')
+	volume_created = True	
+	
+	devices_after = set(utils.execute('ls /dev | grep -E vd[a-z][a-z]?')[0].split(\n))
+	new_devices = devices_after - devices_before
 
-	if not os.path.exists(device):
+	if len(new_devices) != 1:
 		print("Error attaching volume")
-		exit(1) 
+		exit(1)
+
+	device = new_devices.pop()
 
 	print("\n***** Making filesystem on volume *****")
-	utils.execute("mke2fs -q -t ext3 %(device)s" % locals())
+	utils.execute("mkfs -t ext3 %(device)s" % locals())
 
 	print("\n***** Mounting volume to %(mount_point)s *****" % locals())
 	utils.execute("mount %(device)s %(mount_point)s" % locals())
-
 	volume_mounted = True
 
 	return volume
@@ -133,8 +130,10 @@ except KeyError:
 	ramdisk_id = ''
 
 mount_point = MOUNT_POINT_PREFIX
+i = 0
 while os.path.exists(mount_point):
-	mount_point = MOUNT_POINT_PREFIX + rand_suffix()
+	mount_point = MOUNT_POINT_PREFIX + str(i)
+	i++
 
 print("\n***** Creating mount point %(mount_point)s *****" % locals())
 utils.execute("mkdir -p %(mount_point)s" % locals())
