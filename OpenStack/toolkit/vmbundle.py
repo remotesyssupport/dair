@@ -56,13 +56,13 @@ def get_volume(size_in_GBs, instance, mount_point):
 	global volume_mounted
 	global volume
 
-	devices_before = set(utils.execute('ls /dev | grep -E vd[a-z][a-z]?')[0].split(\n))
+	devices_before = set(utils.execute('ls /dev | grep -E vd[a-z][a-z]?')[0].split('\n'))
 
 	print("\n***** Creating and attaching volume *****")
 	volume = vmcreate.create_and_attach_volume(size_in_GBs, instance, '/dev/vdzz')
 	volume_created = True	
 	
-	devices_after = set(utils.execute('ls /dev | grep -E vd[a-z][a-z]?')[0].split(\n))
+	devices_after = set(utils.execute('ls /dev | grep -E vd[a-z][a-z]?')[0].split('\n'))
 	new_devices = devices_after - devices_before
 
 	if len(new_devices) != 1:
