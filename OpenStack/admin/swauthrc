@@ -1,0 +1,7 @@
+ADMIN_KEY=$(grep super_admin_key /etc/swift/proxy-server.conf | cut -d " " -f 3)
+ADMIN_AB_URL="https://swift-ab.dair-atir.canarie.ca:8080/auth/"
+ADMIN_QC_URL="https://swift-qc.dair-atir.canarie.ca:8080/auth/"
+export SWAUTH_AB="-A $ADMIN_AB_URL -K $ADMIN_KEY"
+export SWAUTH_QC="-A $ADMIN_QC_URL -K $ADMIN_KEY"
+
+# Use swauth-* commands like so: swauth-list $SWAUTH_AB
