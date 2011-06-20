@@ -20,7 +20,7 @@ function log {
 	echo $(date): $1 | tee -a $LOG
 }
 
-if [ "$#" -ne 1]; then
+if [ "$#" -ne 1 ]; then
 	prompt "Delete account" ACCOUNT
 else
 	ACCOUNT="$1"
