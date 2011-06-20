@@ -41,7 +41,7 @@ for PROXY in ${PROXY_LIST[@]}; do
 
 	for USER in $USERS; do
 		log "Deleting user $USER"
-		swauth-delete-user -A $ADMIN_URL -L $ADMIN_KEY $ACCOUNT $USER 1>>$LOG 2>>$ERR
+		swauth-delete-user -A $ADMIN_URL -K $ADMIN_KEY $ACCOUNT $USER 1>>$LOG 2>>$ERR
 	done
 
 	log "Deleting account '$ACCOUNT'"
