@@ -25,7 +25,7 @@ else
 fi
 
 # Use project admin's credentials
-USER="$PROJECT-admin"
+ADMIN="$PROJECT-admin"
 EXPORTS=$(nova-manage user exports $ADMIN)
 
 if [ ! $(echo "$EXPORTS" | wc -l) -eq 2 ]; then
