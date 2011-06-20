@@ -21,6 +21,7 @@ function log {
 }
 
 if [ "$#" -ne 1 ]; then
+	usage
 	prompt "Delete account" ACCOUNT
 else
 	ACCOUNT="$1"
