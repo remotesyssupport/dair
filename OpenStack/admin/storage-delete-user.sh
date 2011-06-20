@@ -34,17 +34,18 @@ ADMIN_KEY=$(grep super_admin_key /etc/swift/proxy-server.conf | cut -d " " -f3)
 
 for PROXY in ${PROXY_LIST[@]}; do
 	ADMIN_URL="https://$PROXY:8080/auth/"
+	REGION=$(echo $PROXY | cut -d "." -f1)
 
 	USERS=$(swauth-list -p -A $ADMIN_URL -K $ADMIN_KEY $ACCOUNT)
 
-	log "Deleting users..."
+	log "Deleting users in region '$REGION'..."
 
 	for USER in $USERS; do
 		log "Deleting user $USER"
 		swauth-delete-user -A $ADMIN_URL -K $ADMIN_KEY $ACCOUNT $USER 1>>$LOG 2>>$ERR
 	done
 
-	log "Deleting account '$ACCOUNT'"
+	log "Deleting account '$ACCOUNT' in region '$REGION'"
 
 	swauth-delete-account -A $ADMIN_URL -K $ADMIN_KEY $ACCOUNT 1>>$LOG 2>>$ERR
 done
