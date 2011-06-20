@@ -26,10 +26,10 @@ fi
 
 # Use project admin's credentials
 USER="$PROJECT-admin"
-EXPORTS=$(nova-manage user exports $USER)
+EXPORTS=$(nova-manage user exports $ADMIN)
 
 if [ ! $(echo "$EXPORTS" | wc -l) -eq 2 ]; then
-	echo "Bad project name or admin is not $USER"
+	echo "Bad project name or admin is not $ADMIN"
 	exit 1
 fi
 
@@ -96,10 +96,18 @@ LDAP_ADDR=$(sed -n 's/--ldap_url=ldap:\/\/\(.\+\)/\1/p' $NOVA_CONF)
 LDAP_USER=$(sed -n 's/--ldap_user_dn=\(.\+\)/\1/p' $NOVA_CONF)
 LDAP_PW=$(sed -n 's/--ldap_password=\(.\+\)/\1/p' $NOVA_CONF)
 LDAP_SEARCHBASE="ou=Groups,$(echo $LDAP_USER | grep -o 'dc=.\+')"
-USERS=$(ldapsearch -b "cn=$PROJECT,$LDAP_SEARCHBASE" -D $LDAP_USER -h $LDAP_ADDR -xw $LDAP_PW | sed -n 's/member: uid=\([^,]\+\).\+/\1/p' | grep -xv $USER | sort | uniq)
+USERS=$(ldapsearch -b "cn=$PROJECT,$LDAP_SEARCHBASE" -D $LDAP_USER -h $LDAP_ADDR -xw $LDAP_PW | sed -n 's/member: uid=\([^,]\+\).\+/\1/p' | grep -xv $ADMIN | sort | uniq)
+
+VENV="/usr/local/openstack-dashboard/trunk/openstack-dashboard/tools/with_venv.sh"
+MANAGE="/usr/local/openstack-dashboard/trunk/openstack-dashboard/dashboard/manage.py"
 
 if [[ $USERS != '' ]]; then
 	echo $USERS | xargs -n1 nova-manage user delete
+
+	# Delete dashboard users
+	for USER in $USERS; do
+		$VENV $MANAGE deleteuser --username=$USER --noinput
+	done
 fi
 
 echo "Deleting project..."
@@ -107,6 +115,6 @@ nova-manage project delete $PROJECT
 nova-manage project scrub $PROJECT
 
 echo "Deleting project admin..."
-nova-manage user delete $USER
+nova-manage user delete $ADMIN
 
 echo "Project $PROJECT deleted."
