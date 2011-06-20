@@ -116,5 +116,6 @@ nova-manage project scrub $PROJECT
 
 echo "Deleting project admin..."
 nova-manage user delete $ADMIN
+$VENV $MANAGE deleteuser --username=$ADMIN --noinput
 
 echo "Project $PROJECT deleted."
