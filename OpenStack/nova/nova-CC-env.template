@@ -26,7 +26,7 @@ THIS_REGION=alberta
 PRIMARY_CC_HOST_IP=DEFAULT_CC_HOST_IP
 
 # Network device for VLANs
-VLAN_INTERFACE=eth1
+VLAN_INTERFACE=DEVICE
 
 # Starting CIDR range of private IPs for VMs
 NETWORK_CIDR=10.0.0.0/8

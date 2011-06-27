@@ -8,21 +8,6 @@ if [ `whoami` != root ]; then
     exit 1
 fi
 
-#Setup the environment
-HOSTNAME=`hostname`
-ABS_PATH=`dirname "$(cd "${0%/*}" 2>/dev/null; echo "$PWD"/"${0##*/}")"`
-
-if [ ! -f $ABS_PATH/nova-CC-env ]; then
-    cp $ABS_PATH/nova-CC-env.template $ABS_PATH/nova-CC-env
-
-    DEFAULT_CC_HOST_IP=`ip addr list eth0 | grep "inet " | cut -d' ' -f6 | cut -d/ -f1`
-    sed -i "s/DEFAULT_CC_HOST_IP/$DEFAULT_CC_HOST_IP/g" $ABS_PATH/nova-CC-env
-
-    vi $ABS_PATH/nova-CC-env
-fi
-
-. $ABS_PATH/nova-CC-env
-
 #This is a Linux check
 if [ `uname -a | grep -i linux | wc -l` -lt 1 ]; then
     echo "Not Linux, not compatible."
@@ -46,53 +31,81 @@ fi
 
 echo $CUR_OS detected!
 
-echo
-echo "###################################"
-echo "Nova Cloud Controller Configuration"
-echo "###################################"
-echo
-echo "Cloud Controller Host IP: $CC_HOST_IP"
-echo
-echo "S3 Host IP:               $S3_HOST_IP"
-echo
-echo "Glance Host IP:           $GLANCE_HOST_IP"
-echo
-echo "RabbitMQ Host IP:         $RABBIT_IP"
-echo
-echo "MySQL Host IP:            $MYSQL_HOST_IP"
-echo
-echo "MySQL Password set"
-echo
-echo "Memcached Host IP:        $MEMCACHED_HOST_IP"
-echo
-echo "LDAP Host IP:             $LDAP_HOST_IP"
-echo
-echo "LDAP Password set"
-echo
-echo "VLAN interface:           $VLAN_INTERFACE"
-echo
-echo "Region list:              $REGION_LIST"
-echo
-echo "This region:              $THIS_REGION"
+#Setup the environment
+HOSTNAME=`hostname`
+ABS_PATH=`dirname "$(cd "${0%/*}" 2>/dev/null; echo "$PWD"/"${0##*/}")"`
 
-echo
-echo "##########################"
-echo "Nova Network Configuration"
-echo "##########################"
-echo
-echo "Starting CIDR range of private IPs for VMs: $NETWORK_CIDR"
-echo
-echo "Number of networks for ALL projects: $NETWORK_NUMBER"
-echo
-echo "Number of IPs per network for ALL projects: $IPS_PER_NETWORK"
-echo
-echo "Number of IPs reserved for VPN clients per project: $NUMBER_VPN_CLIENTS"
-echo
-echo "Cloud admin user name set as $CLOUD_ADMIN"
-echo
-echo "Cloud admin project set as $CLOUD_ADMIN_PROJECT"
-echo
-echo "Entering auto-pilot mode..."
+if [ ! -f $ABS_PATH/nova-CC-env ]; then
+    read -p "Device for your private network (Default is eth0 -- Enter to accept): " DEVICE
+    DEVICE=${DEVICE:-eth0}
+
+    cp $ABS_PATH/nova-CC-env.template $ABS_PATH/nova-CC-env
+
+    DEFAULT_CC_HOST_IP=`ip addr list ${DEVICE} | grep "inet " | cut -d' ' -f6 | cut -d/ -f1`
+    sed -i "s/DEFAULT_CC_HOST_IP/$DEFAULT_CC_HOST_IP/g" $ABS_PATH/nova-CC-env
+    sed -i "s/DEVICE/$DEVICE/g" $ABS_PATH/nova-CC-env
+
+    CONTINUE="n"
+
+    while [ $CONTINUE != "y" ]; do
+
+        vi $ABS_PATH/nova-CC-env
+        . $ABS_PATH/nova-CC-env
+
+        echo
+        echo "###################################"
+        echo "Nova Cloud Controller Configuration"
+        echo "###################################"
+        echo
+        echo "Cloud Controller Host IP: $CC_HOST_IP"
+        echo
+        echo "S3 Host IP:               $S3_HOST_IP"
+        echo
+        echo "Glance Host IP:           $GLANCE_HOST_IP"
+        echo
+        echo "RabbitMQ Host IP:         $RABBIT_IP"
+        echo
+        echo "MySQL Host IP:            $MYSQL_HOST_IP"
+        echo
+        echo "MySQL Password set"
+        echo
+        echo "Memcached Host IP:        $MEMCACHED_HOST_IP"
+        echo
+        echo "LDAP Host IP:             $LDAP_HOST_IP"
+        echo
+        echo "LDAP Password set"
+        echo
+        echo "VLAN interface:           $VLAN_INTERFACE"
+        echo
+        echo "Region list:              $REGION_LIST"
+        echo
+        echo "This region:              $THIS_REGION"
+
+        echo
+        echo "##########################"
+        echo "Nova Network Configuration"
+        echo "##########################"
+        echo
+        echo "Starting CIDR range of private IPs for VMs: $NETWORK_CIDR"
+        echo
+        echo "Number of networks for ALL projects: $NETWORK_NUMBER"
+        echo
+        echo "Number of IPs per network for ALL projects: $IPS_PER_NETWORK"
+        echo
+        echo "Number of IPs reserved for VPN clients per project: $NUMBER_VPN_CLIENTS"
+        echo
+        echo "Cloud admin user name set as $CLOUD_ADMIN"
+        echo
+        echo "Cloud admin project set as $CLOUD_ADMIN_PROJECT"
+        echo
+        
+        read -p "Are these settings correct [y|n]? (Default is y -- Enter to accept): " CONTINUE
+        CONTINUE=${CONTINUE:-y}
+
+    done
+fi
+
+. $ABS_PATH/nova-CC-env
 
 echo
 echo "############################"
@@ -118,7 +131,7 @@ else
 fi
 
 apt-get -q update
-apt-get -q -y install ntp memcached python-memcache python-mysqldb mysql-server rabbitmq-server python-eventlet euca2ools unzip
+apt-get -q -y install ntp memcached python-memcache python-mysqldb mysql-server rabbitmq-server python-eventlet euca2ools unzip ntpS
 apt-get -q -y install nova-api nova-network nova-objectstore nova-scheduler
 
 echo "ENABLED=1" > /etc/default/nova-common

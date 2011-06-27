@@ -8,24 +8,6 @@ if [ `whoami` != root ]; then
     exit 1
 fi
 
-#Setup the environment
-ABS_PATH=`dirname "$(cd "${0%/*}" 2>/dev/null; echo "$PWD"/"${0##*/}")"`
-
-if [ ! -f $ABS_PATH/nova-NODE-env ]; then
-    cp $ABS_PATH/nova-NODE-env.template $ABS_PATH/nova-NODE-env
-
-    DEFAULT_CC_HOST_IP=`ip addr list eth1 | grep "inet " | cut -d' ' -f6 | cut -d/ -f1`
-    if [ ! "$DEFAULT_CC_HOST_IP" ]; then
-        DEFAULT_CC_HOST_IP=`ip addr list eth0 | grep "inet " | cut -d' ' -f6 | cut -d/ -f1`
-    fi
-
-    sed -i "s/DEFAULT_CC_HOST_IP/$DEFAULT_CC_HOST_IP/g" $ABS_PATH/nova-NODE-env
-
-    vi $ABS_PATH/nova-NODE-env
-fi
-
-. $ABS_PATH/nova-NODE-env
-
 #This is a Linux check
 if [ `uname -a | grep -i linux | wc -l` -lt 1 ]; then
     echo "Not Linux, not compatible."
@@ -49,6 +31,64 @@ fi
 
 echo $CUR_OS detected!
 
+#Setup the environment
+ABS_PATH=`dirname "$(cd "${0%/*}" 2>/dev/null; echo "$PWD"/"${0##*/}")"`
+
+if [ ! -f $ABS_PATH/nova-NODE-env ]; then
+    read -p "Device for your private network (Default is eth0 -- Enter to accept): " DEVICE
+    DEVICE=${DEVICE:-eth0}
+
+    cp $ABS_PATH/nova-NODE-env.template $ABS_PATH/nova-NODE-env
+
+    DEFAULT_CC_HOST_IP=`ip addr list ${DEVICE} | grep "inet " | cut -d' ' -f6 | cut -d/ -f1`
+    if [ ! "$DEFAULT_CC_HOST_IP" ]; then
+        DEFAULT_CC_HOST_IP=`ip addr list eth0 | grep "inet " | cut -d' ' -f6 | cut -d/ -f1`
+    fi
+
+    sed -i "s/DEFAULT_CC_HOST_IP/$DEFAULT_CC_HOST_IP/g" $ABS_PATH/nova-NODE-env
+    sed -i "s/DEVICE/$DEVICE/g" $ABS_PATH/nova-NODE-env
+
+    CONTINUE="n"
+
+    while [ $CONTINUE != "y" ]; do
+
+        vi $ABS_PATH/nova-NODE-env
+        . $ABS_PATH/nova-NODE-env
+
+		echo
+		echo "##################################"
+		echo "Compute/Volume Node Configuration "
+		echo "##################################"
+		echo
+		echo "Cloud Controller Host IP: $CC_HOST_IP"
+		echo
+		echo "S3 Host IP:               $S3_HOST_IP"
+		echo
+		echo "Glance Host IP:           $GLANCE_HOST_IP"
+		echo
+		echo "RabbitMQ Host IP:         $RABBIT_IP"
+		echo
+		echo "MySQL Host IP:            $MYSQL_HOST_IP"
+		echo
+		echo "MySQL Password set"
+		echo
+		echo "Memcached Host IP:        $MEMCACHED_HOST_IP"
+		echo
+		echo "LDAP Host IP:             $LDAP_HOST_IP"
+		echo
+		echo "LDAP Password set"
+		echo
+		echo "VLAN interface:           $VLAN_INTERFACE"
+		echo
+        
+        read -p "Are these settings correct [y|n]? (Default is y -- Enter to accept): " CONTINUE
+        CONTINUE=${CONTINUE:-y}
+
+    done
+fi
+
+. $ABS_PATH/nova-NODE-env
+
 echo
 echo "############################"
 echo "Installing required packages"
@@ -67,36 +107,10 @@ else
 fi
 
 apt-get -q update
-apt-get -q -y install ntp python-memcache python-mysqldb
+apt-get -q -y install ntp python-memcache python-mysqldb ntp
 apt-get -q -y install nova-compute nova-volume
 
 echo "ENABLED=1" > /etc/default/nova-common
-
-echo
-echo "##################################"
-echo "Compute/Volume Node Configuration "
-echo "##################################"
-echo
-echo "Cloud Controller Host IP: $CC_HOST_IP"
-echo
-echo "S3 Host IP:               $S3_HOST_IP"
-echo
-echo "Glance Host IP:           $GLANCE_HOST_IP"
-echo
-echo "RabbitMQ Host IP:         $RABBIT_IP"
-echo
-echo "MySQL Host IP:            $MYSQL_HOST_IP"
-echo
-echo "MySQL Password set"
-echo
-echo "Memcached Host IP:        $MEMCACHED_HOST_IP"
-echo
-echo "LDAP Host IP:             $LDAP_HOST_IP"
-echo
-echo "LDAP Password set"
-echo
-echo "VLAN interface:           $VLAN_INTERFACE"
-echo
 
 if [ `vgs nova-volumes | grep -c "not found"` -eq 0 ]; then
     echo "Setting up volume group for nova-volumes"
@@ -109,6 +123,8 @@ echo
 echo "Restarting iscsitarget"
 echo "ISCSITARGET_ENABLE=true" > /etc/default/iscsitarget
 /etc/init.d/iscsitarget restart
+
+ISCSI_PREFIX_IP=`echo $DEFAULT_CC_HOST_IP | cut -d. -f1-3`
 
 echo
 echo "###################################"
@@ -132,6 +148,7 @@ cat > /etc/nova/nova.conf << NOVA_CONF_EOF
 --vlan_interface=$VLAN_INTERFACE
 --glance_host=$GLANCE_HOST_IP
 --image_service=nova.image.glance.GlanceImageService
+--iscsi_ip_prefix=$ISCSI_PREFIX_IP
 NOVA_CONF_EOF
 
 echo
