@@ -87,7 +87,7 @@ fi
 # Password reset
 log "Resetting password..."
 log "Sending notification to '$EMAIL'..."
-$VENV $MANAGE passwordreset --email="$EMAIL" 1>>$LOG 2>>$ERR 
+$VENV $MANAGE passwordreset --admin --email="$EMAIL" 1>>$LOG 2>>$ERR 
 
 if [ "$(project_exists)" == "true" ]; then
 	log "project $PROJECT already exists and has an administrator"
