@@ -70,7 +70,7 @@ MYSQL_USER=$(grep sql_connection /etc/nova/nova.conf | cut -d '/' -f3 | cut -d '
 MYSQL_PW=$(grep sql_connection /etc/nova/nova.conf | cut -d ':' -f3 | cut -d '@' -f1)
 RESULT=$(mysql -u$MYSQL_USER -p$MYSQL_PW dashboard -e "select * from auth_user where email='$EMAIL'")
 
-if [[ "$RESULT" == '' ]]; then
+if [[ "$RESULT" != '' ]]; then
 	log "A user with email $EMAIL already exists"
 	exit
 fi
