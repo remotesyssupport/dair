@@ -58,6 +58,15 @@ if [ "$(project_exists)" != "true" ]; then
 	exit
 fi
 
+MYSQL_USER=$(grep sql_connection /etc/nova/nova.conf | cut -d '/' -f3 | cut -d ':' -f1)
+MYSQL_PW=$(grep sql_connection /etc/nova/nova.conf | cut -d ':' -f3 | cut -d '@' -f1)
+RESULT=$(mysql -u$MYSQL_USER -p$MYSQL_PW dashboard -e "select * from auth_user where email='$EMAIL'")
+
+if [[ "$RESULT" == '' ]]; then
+	log "A user with email $EMAIL already exists"
+	exit
+fi
+
 log "Creating user '$USERNAME'..."
 $VENV $MANAGE  createuser --username="$USERNAME" --email="$EMAIL" \
 	--firstname="$FIRSTNAME" --lastname="$LASTNAME" --noinput 1>>$LOG 2>>$ERR 
