@@ -4,7 +4,6 @@ LOG="compute-create.log"
 ERR="compute-create-error.log"
 VENV="/usr/local/openstack-dashboard/trunk/openstack-dashboard/tools/with_venv.sh"
 MANAGE="/usr/local/openstack-dashboard/trunk/openstack-dashboard/dashboard/manage.py"
-PROJECT_LIST=$(nova-manage project list)
 
 set -o nounset
 
@@ -31,6 +30,13 @@ function project_exists {
 	done
 }
 
+if [[ $EUID -ne 0 ]]; then
+	echo "This script must be run as root"
+	exit
+fi
+
+PROJECT_LIST=$(nova-manage project list)
+
 # we'll clear the error log, but hang on to the regular log"
 cat /dev/null > $ERR
 log "=============================================="
@@ -55,6 +61,15 @@ last name = '$LASTNAME', username = '$USERNAME', email = '$EMAIL'"
 
 if [ "$(project_exists)" != "true" ]; then
 	log "project $PROJECT does not exist"
+	exit
+fi
+
+MYSQL_USER=$(grep sql_connection /etc/nova/nova.conf | cut -d '/' -f3 | cut -d ':' -f1)
+MYSQL_PW=$(grep sql_connection /etc/nova/nova.conf | cut -d ':' -f3 | cut -d '@' -f1)
+RESULT=$(mysql -u$MYSQL_USER -p$MYSQL_PW dashboard -e "select * from auth_user where email='$EMAIL'")
+
+if [[ "$RESULT" != '' ]]; then
+	log "A user with email $EMAIL already exists"
 	exit
 fi
 

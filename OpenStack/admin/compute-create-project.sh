@@ -4,7 +4,6 @@ LOG="compute-create.log"
 ERR="compute-create-error.log"
 VENV="/usr/local/openstack-dashboard/trunk/openstack-dashboard/tools/with_venv.sh"
 MANAGE="/usr/local/openstack-dashboard/trunk/openstack-dashboard/dashboard/manage.py"
-PROJECT_LIST=$(nova-manage project list)
 
 set -o nounset
 
@@ -30,6 +29,13 @@ function project_exists {
 		fi
 	done
 }
+
+if [[ $EUID -ne 0 ]]; then
+	echo "This script must be run as root"
+	exit
+fi
+
+PROJECT_LIST=$(nova-manage project list)
 
 # we'll clear the error log, but hang on to the regular log"
 cat /dev/null > $ERR
@@ -66,6 +72,15 @@ USERNAME="$PROJECT-admin"
 
 log "project = '$PROJECT', first name = '$FIRSTNAME', last name = '$LASTNAME', username = '$USERNAME', email = '$EMAIL'"
 
+MYSQL_USER=$(grep sql_connection /etc/nova/nova.conf | cut -d '/' -f3 | cut -d ':' -f1)
+MYSQL_PW=$(grep sql_connection /etc/nova/nova.conf | cut -d ':' -f3 | cut -d '@' -f1)
+RESULT=$(mysql -u$MYSQL_USER -p$MYSQL_PW dashboard -e "select * from auth_user where email='$EMAIL'")
+
+if [[ "$RESULT" != '' ]]; then
+	log "A user with email $EMAIL already exists"
+	exit
+fi
+
 # Create User
 log "Creating user '$USERNAME'..."
 $VENV $MANAGE  createuser --username="$USERNAME" --email="$EMAIL" \
@@ -78,7 +93,7 @@ fi
 # Password reset
 log "Resetting password..."
 log "Sending notification to '$EMAIL'..."
-$VENV $MANAGE passwordreset --email="$EMAIL" 1>>$LOG 2>>$ERR 
+$VENV $MANAGE passwordreset --admin=True --email="$EMAIL" 1>>$LOG 2>>$ERR 
 
 if [ "$(project_exists)" == "true" ]; then
 	log "project $PROJECT already exists and has an administrator"

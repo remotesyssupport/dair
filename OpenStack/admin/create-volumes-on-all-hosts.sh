@@ -2,6 +2,11 @@
 
 #TODO: check for XXX and exit out if found
 
+if [[ $EUID -ne 0 ]]; then
+	echo "This script must be run as root"
+	exit
+fi
+
 HOSTS=`nova-manage service list | grep volume | sort | cut -f1 -d' '`
 AMI=$1
 
