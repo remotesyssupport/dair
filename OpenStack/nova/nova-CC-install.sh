@@ -132,7 +132,7 @@ fi
 
 apt-get -q update
 apt-get -q -y install ntp memcached python-memcache python-mysqldb mysql-server rabbitmq-server python-eventlet euca2ools unzip ntp
-apt-get -q -y install nova-api nova-network nova-objectstore nova-scheduler
+apt-get -q -y -t maverick install nova-api nova-network nova-objectstore nova-scheduler
 
 echo "ENABLED=1" > /etc/default/nova-common
 
