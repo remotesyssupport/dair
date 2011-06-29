@@ -107,8 +107,8 @@ else
 fi
 
 apt-get -q update
-apt-get -q -y install ntp python-memcache python-mysqldb ntp
-apt-get -q -y -t maverick install nova-compute nova-volume
+apt-get -q -y install ntp python-memcache python-mysqldb
+apt-get -q -y -t maverick install nova-common nova-compute nova-volume
 
 echo "ENABLED=1" > /etc/default/nova-common
 
