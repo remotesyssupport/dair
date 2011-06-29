@@ -4,7 +4,6 @@ LOG="compute-create.log"
 ERR="compute-create-error.log"
 VENV="/usr/local/openstack-dashboard/trunk/openstack-dashboard/tools/with_venv.sh"
 MANAGE="/usr/local/openstack-dashboard/trunk/openstack-dashboard/dashboard/manage.py"
-PROJECT_LIST=$(nova-manage project list)
 
 set -o nounset
 
@@ -30,6 +29,13 @@ function project_exists {
 		fi
 	done
 }
+
+if [[ $EUID -ne 0 ]]; then
+	echo "This script must be run as root"
+	exit
+fi
+
+PROJECT_LIST=$(nova-manage project list)
 
 # we'll clear the error log, but hang on to the regular log"
 cat /dev/null > $ERR
