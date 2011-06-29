@@ -131,7 +131,7 @@ else
 fi
 
 apt-get -q update
-apt-get -q -y install ntp memcached python-memcache python-mysqldb mysql-server rabbitmq-server python-eventlet euca2ools unzip ntpS
+apt-get -q -y install ntp memcached python-memcache python-mysqldb mysql-server rabbitmq-server python-eventlet euca2ools unzip ntp
 apt-get -q -y install nova-api nova-network nova-objectstore nova-scheduler
 
 echo "ENABLED=1" > /etc/default/nova-common
