@@ -25,14 +25,7 @@ NOVA_DEFAULT_REGION="nova"
 NOVA_ACCESS_KEY=$(grep EC2_ACCESS_KEY= $NOVARC | cut -d'=' -f2)
 NOVA_SECRET_KEY=$(grep EC2_SECRET_KEY= $NOVARC | cut -d'=' -f2)
 NOVA_ADMIN_USER=$(grep NOVA_USERNAME= $NOVARC | cut -d'=' -f2)
-NOVA_PROJECT_LIST=$(nova-manage project list)
-
-
-for PROJECT in $NOVA_PROJECT_LIST; do
-        if [[ $PROJECT = *'admin'* ]]; then
-		NOVA_PROJECT=$PROJECT
-        fi
-done
+NOVA_PROJECT=`nova-manage project list | head -1`
                                                                                                                                                                            
 #~ In the local_settings.py file, we need to change several important options:
 #~ --------------------------------------------------------------------- 
@@ -48,8 +41,9 @@ done
 #~	NOVA_ADMIN_USER is defined as project_manager. Refer to RunningNova for 
 #~	assistance if you haven't defined any nova projects. 
 #~ --------------------------------------------------------------------- 
-cd "$DASHBOARD/trunk/openstack-dashboard/local"
+cd "$DASHBOARD/dair/openstack-dashboard/local"
 
+sed -i s/^NOVA_DEFAULT_ENDPOINT.*/"NOVA_DEFAULT_ENDPOINT = '$NOVA_DEFAULT_ENDPOINT'"/g local_settings.py
 sed -i s/^NOVA_DEFAULT_REGION.*/"NOVA_DEFAULT_REGION = '$NOVA_DEFAULT_REGION'"/g local_settings.py
 sed -i s/^NOVA_ACCESS_KEY.*/"NOVA_ACCESS_KEY = $NOVA_ACCESS_KEY"/g local_settings.py
 sed -i s/^NOVA_SECRET_KEY.*/"NOVA_SECRET_KEY = $NOVA_SECRET_KEY"/g local_settings.py
