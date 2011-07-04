@@ -1,0 +1,6 @@
+#! /bin/bash
+
+apt-get -y install swift
+while [ 1 ]; do
+	st --user='USER' --key='PASSWORD'  --auth='https://swift-REGION.dair-atir.canarie.ca:8080/auth/v1.0' download videos 'OpenStack 11-03-11 Part 1.mp4'
+done
