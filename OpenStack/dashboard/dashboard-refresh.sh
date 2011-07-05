@@ -22,11 +22,11 @@ fi
 set -o nounset 
 
 # dashboard configuration values
-NOVA_DEFAULT_ENDPOINT=$EC2_URL
+NOVA_DEFAULT_ENDPOINT='$EC2_URL'
 NOVA_DEFAULT_REGION=$DEFAULT_REGION
-NOVA_ACCESS_KEY=$EC2_ACCESS_KEY
-NOVA_SECRET_KEY=$EC2_SECRET_KEY
-NOVA_ADMIN_USER=$NOVA_USERNAME
+NOVA_ACCESS_KEY='$EC2_ACCESS_KEY'
+NOVA_SECRET_KEY='$EC2_SECRET_KEY'
+NOVA_ADMIN_USER='$NOVA_USERNAME'
 NOVA_PROJECT=`nova-manage project list | head -1`
                                                                                                                                                                            
 #~ In the local_settings.py file, we need to change several important options:

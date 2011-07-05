@@ -61,7 +61,7 @@ echo "Installing the OpenStack Dashboard to $DASHBOARD"
 # openstack-dashboard provides all the look and feel for the dashboard.
 mkdir -p $DASHBOARD
 cd $DASHBOARD
-git clone git@github.com:canarie/openstack-dashboard.git dair
+git clone git://github.com/canarie/openstack-dashboard.git dair
 
 cd "$DASHBOARD/dair/openstack-dashboard/local"
 cat >> local_settings.py << EOF
@@ -163,3 +163,4 @@ esac
 EOF
 
 chmod +x $DASHBOARD_START_STOP
+
