@@ -1,8 +1,16 @@
 DASHBOARD_SERVER_IP=`grep ec2_host /etc/nova/nova.conf | sed 's/--ec2_host=//'`
+
 INSTALL_ROOT="/usr/local"
 DASHBOARD="$INSTALL_ROOT/openstack-dashboard"
 DASHBOARD_START_STOP="$INSTALL_ROOT/bin/dashboard"
-NOVARC="/root/creds-admin/albertarc"
+
 MYSQL_CONN=`grep sql_conn /etc/nova/nova.conf | sed 's/--//'`
 MYSQL_PW=`echo $MYSQL_CONN | cut -d ':' -f3 | cut -d '@' -f1`
 
+EMAIL_PORT=143
+EMAIL_HOST='my.mail-server.com'
+EMAIL_HOST_USER='user'
+EMAIL_HOST_PASSWORD='password'
+EMAIL_USE_TLS=None
+
+DEFAULT_REGION='alberta'

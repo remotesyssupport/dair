@@ -1,16 +1,18 @@
 #! /bin/bash
 
+# This script should be run as root with the cloud admin user credentials sourced
+
 ABS_PATH=`dirname "$(cd "${0%/*}" 2>/dev/null; echo "$PWD"/"${0##*/}")"`
-source $ABS_PATH/dashboard.env
+source $ABS_PATH/dashboard-env
 
 # some sanity checks
 if [ `whoami` != root ]; then
-        echo "Please run this as the user, 'root'!";
-        exit 1
+    echo "Please run this as the user, 'root'!";
+    exit 1
 fi
 
-if [ ! -f "$NOVARC" ]; then
-	echo "can't find novarc file '$NOVARC'"
+if [ -z "$EC2_URL" ]; then
+	echo "Please source the credentials of the cloud admin user."
 	exit 1
 fi
 
@@ -20,11 +22,11 @@ fi
 set -o nounset 
 
 # dashboard configuration values
-NOVA_DEFAULT_ENDPOINT=$(grep EC2_URL= $NOVARC | cut -d'=' -f2  | sed s/'\/'/'\\\/'/g)
-NOVA_DEFAULT_REGION="nova"
-NOVA_ACCESS_KEY=$(grep EC2_ACCESS_KEY= $NOVARC | cut -d'=' -f2)
-NOVA_SECRET_KEY=$(grep EC2_SECRET_KEY= $NOVARC | cut -d'=' -f2)
-NOVA_ADMIN_USER=$(grep NOVA_USERNAME= $NOVARC | cut -d'=' -f2)
+NOVA_DEFAULT_ENDPOINT=$EC2_URL
+NOVA_DEFAULT_REGION=$DEFAULT_REGION
+NOVA_ACCESS_KEY=$EC2_ACCESS_KEY
+NOVA_SECRET_KEY=$EC2_SECRET_KEY
+NOVA_ADMIN_USER=$NOVA_USERNAME
 NOVA_PROJECT=`nova-manage project list | head -1`
                                                                                                                                                                            
 #~ In the local_settings.py file, we need to change several important options:

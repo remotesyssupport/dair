@@ -5,6 +5,6 @@ OpenStack/ldap/ldap-env
 OpenStack/ldap/modify.ldif
 OpenStack/nova/nova-CC-env
 OpenStack/nova/nova-NODE-env
-
+OpenStack/dashboard/dashboard-env
 
 
