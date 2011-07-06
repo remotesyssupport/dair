@@ -47,7 +47,12 @@ for PROXY in ${PROXY_LIST[@]}; do
 	ADMIN_URL="https://$PROXY:8080/auth/"
 	REGION=$(echo $PROXY | cut -d "." -f1)
 
-	USERS=$(swauth-list -p -A $ADMIN_URL -K $ADMIN_KEY $ACCOUNT)
+	USERS=$(swauth-list -p -A $ADMIN_URL -K $ADMIN_KEY $ACCOUNT 2>/dev/null)
+	
+	if [[ $USERS == "List failed: 404 Not Found" ]]; then
+		log "Account $ACCOUNT does not exist in region $REGION"
+		continue
+	fi
 
 	log "Deleting users in region '$REGION'..."
 
