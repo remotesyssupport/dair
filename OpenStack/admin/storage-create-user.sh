@@ -25,11 +25,15 @@ function log {
 	echo $(date): $1 | tee -a $LOG 
 }
 
+if [[ $EUID -ne 0 ]]; then
+	echo "This script must be run as root"
+	exit
+fi
+
 # we'll clear the error log, but hang on to the regular log"
 mkdir -p $LOG_DIR > /dev/null 2>&1
 cat /dev/null > $ERR
 log "=============================================="
-
 
 if [ "$#" -lt 3 ]; then
 	usage
