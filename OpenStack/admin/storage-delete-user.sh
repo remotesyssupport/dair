@@ -1,7 +1,8 @@
 #! /bin/bash
 
-LOG="swift-delete.log"
-ERR="swift-delete-error.log"
+LOG_DIR="/var/log/dair"
+LOG="$LOG_DIR/storage-delete-user.log"
+ERR="$LOG_DIR/storage-delete-user-error.log"
 FQDN_AB="swift-ab.dair-atir.canarie.ca"
 FQDN_QC="swift-qc.dair-atir.canarie.ca"
 PROXY_LIST=($FQDN_AB $FQDN_QC)
@@ -19,6 +20,10 @@ function prompt {
 function log {
 	echo $(date): $1 | tee -a $LOG
 }
+
+mkdir -p $LOG_DIR > /dev/null 2>&1
+cat /dev/null > $ERR
+log "============================================="
 
 if [ "$#" -ne 1 ]; then
 	usage

@@ -3,8 +3,9 @@
 #~ create swift user in both regions using FQDN
 #~ generate swift rc files
 
-LOG="swift-create.log"
-ERR="swift-create-error.log"
+LOG_DIR="/var/log/dair"
+LOG="$LOG_DIR/storage-create-user.log"
+ERR="$LOG_DIR/storage-create-user-error.log"
 FQDN_AB="swift-ab.dair-atir.canarie.ca"
 FQDN_QC="swift-qc.dair-atir.canarie.ca"
 PROXY_LIST=($FQDN_AB $FQDN_QC)
@@ -25,6 +26,7 @@ function log {
 }
 
 # we'll clear the error log, but hang on to the regular log"
+mkdir -p $LOG_DIR > /dev/null 2>&1
 cat /dev/null > $ERR
 log "=============================================="
 

@@ -1,7 +1,8 @@
 #! /bin/bash
 
-LOG="compute-create.log"
-ERR="compute-create-error.log"
+LOG_DIR="/var/log/dair"
+LOG="$LOG_DIR/compute-create-user.log"
+ERR="$LOG_DIR/compute-create-user-error.log"
 VENV="/usr/local/openstack-dashboard/trunk/openstack-dashboard/tools/with_venv.sh"
 MANAGE="/usr/local/openstack-dashboard/trunk/openstack-dashboard/dashboard/manage.py"
 
@@ -38,6 +39,7 @@ fi
 PROJECT_LIST=$(nova-manage project list)
 
 # we'll clear the error log, but hang on to the regular log"
+mkdir -p $LOG_DIR > /dev/null 2>&1
 cat /dev/null > $ERR
 log "=============================================="
 
