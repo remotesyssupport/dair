@@ -98,8 +98,8 @@ LDAP_PW=$(sed -n 's/--ldap_password=\(.\+\)/\1/p' $NOVA_CONF)
 LDAP_SEARCHBASE="ou=Groups,$(echo $LDAP_USER | grep -o 'dc=.\+')"
 USERS=$(ldapsearch -b "cn=$PROJECT,$LDAP_SEARCHBASE" -D $LDAP_USER -h $LDAP_ADDR -xw $LDAP_PW | sed -n 's/member: uid=\([^,]\+\).\+/\1/p' | grep -xv $ADMIN | sort | uniq)
 
-VENV="/usr/local/openstack-dashboard/trunk/openstack-dashboard/tools/with_venv.sh"
-MANAGE="/usr/local/openstack-dashboard/trunk/openstack-dashboard/dashboard/manage.py"
+VENV="/usr/local/openstack-dashboard/dair/openstack-dashboard/tools/with_venv.sh"
+MANAGE="/usr/local/openstack-dashboard/dair/openstack-dashboard/dashboard/manage.py"
 
 if [[ $USERS != '' ]]; then
 	echo $USERS | xargs -n1 nova-manage user delete
