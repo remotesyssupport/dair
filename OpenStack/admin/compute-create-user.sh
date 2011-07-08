@@ -3,8 +3,8 @@
 LOG_DIR="/var/log/dair"
 LOG="$LOG_DIR/compute-create-user.log"
 ERR="$LOG_DIR/compute-create-user-error.log"
-VENV="/usr/local/openstack-dashboard/trunk/openstack-dashboard/tools/with_venv.sh"
-MANAGE="/usr/local/openstack-dashboard/trunk/openstack-dashboard/dashboard/manage.py"
+VENV="/usr/local/openstack-dashboard/dair/openstack-dashboard/tools/with_venv.sh"
+MANAGE="/usr/local/openstack-dashboard/dair/openstack-dashboard/dashboard/manage.py"
 
 set -o nounset
 

@@ -18,7 +18,7 @@ set -o nounset
 
 
 # add the VNC console
-cd "$DASHBOARD/trunk/"
+cd "$DASHBOARD/dair/"
 bzr merge lp:~sleepsonthefloor/openstack-dashboard/vnc_console
 
 cd /var/lib/nova
