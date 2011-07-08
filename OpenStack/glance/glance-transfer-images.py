@@ -30,6 +30,8 @@ try:
 except IndexError:
 	dest_client = Client(dest[0], 9292)
 
+new_image_ids = {}
+
 for image in args.images:
 	meta, image_file = source_client.get_image(image)	
 	f = open(TEMP_IMAGE_PATH, 'wb')
@@ -38,6 +40,7 @@ for image in args.images:
 	f.close()
 
 	f = open(TEMP_IMAGE_PATH, 'rb')
+	old_id = str(meta['id'])
 	del meta['id']
 	del meta['location']
 	del meta['status']
@@ -52,7 +55,7 @@ for image in args.images:
 		None
 
 	new_meta = dest_client.add_image(meta, f)
-	new_image_ids[meta['id']] = new_meta['id']
+	new_image_ids[old_id] = str(new_meta['id'])
 	print("Image transferred.  Got id: %s" % new_meta['id'])
 	f.close()
 	remove(TEMP_IMAGE_PATH)
