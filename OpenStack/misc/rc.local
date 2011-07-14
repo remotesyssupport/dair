@@ -34,8 +34,14 @@ log() {
 inject_ssh_key() 
 {
 	# simple attempt to get the user ssh key using the meta-data service
-	CURL_RESULT=$(curl -m 20 -s $SSH_KEY_URL)
-	RETURN_CODE=$?
+	for i in `seq 1 20`; do
+		CURL_RESULT=$(curl -m 20 -s $SSH_KEY_URL)
+		RETURN_CODE=$?
+		if [ $RETURN_CODE -ne 7 ]; then
+			break
+		fi
+		sleep 1
+	done
 	LENGTH="${#CURL_RESULT}"
 	if [ $RETURN_CODE -ne 0 ] || [ $LENGTH = 0 ]; then
 		log "error retrieving ssh key"
