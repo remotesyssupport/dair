@@ -11,12 +11,6 @@ if [[ $EUID -ne 0 ]]; then
 	exit 1
 fi
 
-if [ -z $EC2_ACCESS_KEY ]; then
-	echo "You need to set your cloud credentials"
-	echo "Try sourcing your novarc file"
-	exit 1
-fi
-
 if [ ! -n "$1" ]; then
 	echo -n "Specify project to delete: "
 	read PROJECT
@@ -43,6 +37,7 @@ fi
 
 $EXPORTS
 EC2_ACCESS_KEY=$EC2_ACCESS_KEY:$PROJECT
+EC2_URL=$(grep ec2_url /etc/nova/nova.conf | cut -d '=' -f2)
 
 echo "Deleting images..."
 IMAGES=$(euca-describe-images | grep "	private	" | cut -f2)
