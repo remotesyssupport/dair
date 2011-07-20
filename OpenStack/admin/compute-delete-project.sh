@@ -35,55 +35,55 @@ if [[ $ANSWER != 'y' && $ANSWER != 'Y' ]]; then
 	exit 0
 fi
 
-$EXPORTS
-EC2_ACCESS_KEY=$EC2_ACCESS_KEY:$PROJECT
+SECRET_KEY=$(echo "$EXPORTS" | grep EC2_SECRET_KEY | cut -d '=' -f2)
+ACCESS_KEY=$(echo "$EXPORTS" | grep EC2_ACCESS_KEY | cut -d '=' -f2):$PROJECT
 EC2_URL=$(grep ec2_url /etc/nova/nova.conf | cut -d '=' -f2)
 
 echo "Deleting images..."
-IMAGES=$(euca-describe-images | grep "	private	" | cut -f2)
+IMAGES=$(euca-describe-images -s $SECRET_KEY -a $ACCESS_KEY -U $EC2_URL | grep "	private	" | cut -f2)
 
 if [[ $IMAGES != '' ]]; then
-	echo $IMAGES | xargs -n1 euca-deregister
+	echo $IMAGES | xargs -n1 euca-deregister -s $SECRET_KEY -a $ACCESS_KEY -U $EC2_URL
 fi
 
 echo "Releasing addresses..."
-ADDRESSES=$(euca-describe-addresses | cut -f2)
+ADDRESSES=$(euca-describe-addresses -s $SECRET_KEY -a $ACCESS_KEY -U $EC2_URL | cut -f2)
 
 if [[ $ADDRESSES != '' ]]; then
-	echo $ADDRESSES | xargs -n1 euca-disassociate-address
+	echo $ADDRESSES | xargs -n1 euca-disassociate-address -s $SECRET_KEY -a $ACCESS_KEY -U $EC2_URL
 	sleep 2
-	echo $ADDRESSES | xargs -n1 euca-release-address
+	echo $ADDRESSES | xargs -n1 euca-release-address -s $SECRET_KEY -a $ACCESS_KEY -U $EC2_URL
 fi
 
 echo "Deleting volumes..."
-VOLUMES=$(euca-describe-volumes | cut -f2)
+VOLUMES=$(euca-describe-volumes -s $SECRET_KEY -a $ACCESS_KEY -U $EC2_URL | cut -f2)
 
 if [[ $VOLUMES != '' ]]; then
-	echo $VOLUMES | xargs -n1 euca-detach-volume
+	echo $VOLUMES | xargs -n1 euca-detach-volume -s $SECRET_KEY -a $ACCESS_KEY -U $EC2_URL
 	sleep 2
-	echo $VOLUMES | xargs -n1 euca-delete-volume
+	echo $VOLUMES | xargs -n1 euca-delete-volume -s $SECRET_KEY -a $ACCESS_KEY -U $EC2_URL
 fi
 
 echo "Terminating instances..."
-INSTANCES=$(euca-describe-instances | grep "INSTANCE" | cut -f2)
+INSTANCES=$(euca-describe-instances -s $SECRET_KEY -a $ACCESS_KEY -U $EC2_URL | grep "INSTANCE" | cut -f2)
 
 if [[ $INSTANCES != '' ]]; then
-	echo $INSTANCES | xargs -n1 euca-terminate-instances
+	echo $INSTANCES | xargs -n1 euca-terminate-instances -s $SECRET_KEY -a $ACCESS_KEY -U $EC2_URL
 fi
 
 echo "Deleting keypairs..."
-KEYPAIRS=$(euca-describe-keypairs | cut -f2)
+KEYPAIRS=$(euca-describe-keypairs -s $SECRET_KEY -a $ACCESS_KEY -U $EC2_URL | cut -f2)
 
 if [[ $KEYPAIRS != '' ]]; then
-	echo $KEYPAIRS | xargs -n1 euca-delete-keypair
+	echo $KEYPAIRS | xargs -n1 euca-delete-keypair -s $SECRET_KEY -a $ACCESS_KEY -U $EC2_URL
 fi
 
 # Currently unsupported in OpenStack
 #echo "Deleting snapshots..."
-#SNAPSHOTS=$(euca-describe-snapshots | cut -f2)
+#SNAPSHOTS=$(euca-describe-snapshots -s $SECRET_KEY -a $ACCESS_KEY -U $EC2_URL | cut -f2)
 
 #if [[ ! $SNAPSHOTS = '' ]]; then
-#	echo $SNAPSHOTS | xargs -n1 euca-delete-snapshot
+#	echo $SNAPSHOTS | xargs -n1 euca-delete-snapshot -s $SECRET_KEY -a $ACCESS_KEY -U $EC2_URL
 #fi
 
 echo "Deleting users..."
