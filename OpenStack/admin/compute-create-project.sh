@@ -119,11 +119,12 @@ CREDENTIALS=$(nova-manage user exports $USERNAME)
 SECRET_KEY=$(echo "$CREDENTIALS" | grep EC2_SECRET_KEY | cut -d"=" -f2)
 ACCESS_KEY=$(echo "$CREDENTIALS" | grep EC2_ACCESS_KEY | cut -d"=" -f2)
 ACCESS_KEY=$ACCESS_KEY:$PROJECT
+EC2_URL=$(grep ec2_url /etc/nova/nova.conf | cut -d '=' -f2)
 
 log "Creating security group..."
-euca-authorize -S $SECRET_KEY -A $ACCESS_KEY -P tcp -p 22 -s 0.0.0.0/0 default 1>>$LOG 2>>$ERR 
-euca-authorize -S $SECRET_KEY -A $ACCESS_KEY -P tcp -p 80 -s 0.0.0.0/0 default 1>>$LOG 2>>$ERR 
-euca-authorize -S $SECRET_KEY -A $ACCESS_KEY -P icmp -t -1:-1 default 1>>$LOG 2>>$ERR 
+euca-authorize -S $SECRET_KEY -A $ACCESS_KEY -U $EC2_URL -P tcp -p 22 -s 0.0.0.0/0 default 1>>$LOG 2>>$ERR 
+euca-authorize -S $SECRET_KEY -A $ACCESS_KEY -U $EC2_URL -P tcp -p 80 -s 0.0.0.0/0 default 1>>$LOG 2>>$ERR 
+euca-authorize -S $SECRET_KEY -A $ACCESS_KEY -u $EC2_URL -P icmp -t -1:-1 default 1>>$LOG 2>>$ERR 
 
 log "Setting project quotas..."
 nova-manage project quota $PROJECT gigabytes $QUOTA_GIGABYTES 1>>$LOG 2>>$ERR 
