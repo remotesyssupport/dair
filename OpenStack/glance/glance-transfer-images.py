@@ -43,7 +43,6 @@ for image in args.images:
 	old_id = str(meta['id'])
 	del meta['id']
 	del meta['location']
-	del meta['status']
 	try:
 		meta['properties']['kernel_id'] = new_image_ids[meta['properties']['kernel_id']]
 	except KeyError:
