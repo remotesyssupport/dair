@@ -15,9 +15,8 @@ if [ ! -n "$2" ]; then
     usage
 fi
 
-#TODO: check for XXX and exit out if found
-
-HOSTS=`nova-manage service list | grep compute | sort | cut -f1 -d' '`
+# Ignore XXX and disabled hosts
+HOSTS=`nova-manage service list | grep compute | grep -v XXX | grep -v disabled | sort | cut -f1 -d' '`
 KEY_PAIR=$1
 AMI=$2
 
