@@ -119,12 +119,15 @@ CREDENTIALS=$(nova-manage user exports $USERNAME)
 SECRET_KEY=$(echo "$CREDENTIALS" | grep EC2_SECRET_KEY | cut -d"=" -f2)
 ACCESS_KEY=$(echo "$CREDENTIALS" | grep EC2_ACCESS_KEY | cut -d"=" -f2)
 ACCESS_KEY=$ACCESS_KEY:$PROJECT
-EC2_URL=$(grep ec2_url /etc/nova/nova.conf | cut -d '=' -f2)
+REGION_LIST=$(grep region_list /etc/nova/nova.conf | sed 's/--region_list=//' | sed 's/,/ /g')
 
-log "Creating security group..."
-euca-authorize -S $SECRET_KEY -A $ACCESS_KEY -U $EC2_URL -P tcp -p 22 -s 0.0.0.0/0 default 1>>$LOG 2>>$ERR 
-euca-authorize -S $SECRET_KEY -A $ACCESS_KEY -U $EC2_URL -P tcp -p 80 -s 0.0.0.0/0 default 1>>$LOG 2>>$ERR 
-euca-authorize -S $SECRET_KEY -A $ACCESS_KEY -U $EC2_URL -P icmp -t -1:-1 default 1>>$LOG 2>>$ERR 
+for REGION in $REGION_LIST; do
+	log "Creating security group for $REGION..."
+	EC2_URL="http://$(echo $REGION | cut -d '=' -f2):8773/services/Cloud"
+	euca-authorize -S $SECRET_KEY -A $ACCESS_KEY -U $EC2_URL -P tcp -p 22 -s 0.0.0.0/0 default 1>>$LOG 2>>$ERR 
+	euca-authorize -S $SECRET_KEY -A $ACCESS_KEY -U $EC2_URL -P tcp -p 80 -s 0.0.0.0/0 default 1>>$LOG 2>>$ERR 
+	euca-authorize -S $SECRET_KEY -A $ACCESS_KEY -U $EC2_URL -P icmp -t -1:-1 default 1>>$LOG 2>>$ERR 
+done
 
 log "Setting project quotas..."
 nova-manage project quota $PROJECT gigabytes $QUOTA_GIGABYTES 1>>$LOG 2>>$ERR 
