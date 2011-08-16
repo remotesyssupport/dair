@@ -127,12 +127,12 @@ if [ $PACKAGES == "ANSO" ]; then
 elif [ $PACKAGES == "TRUNK" ]; then
     add-apt-repository ppa:nova-core/trunk
 else
-    add-apt-repository ppa:nova-core/release
+    add-apt-repository ppa:openstack-release/2011.2
 fi
 
 apt-get -q update
 apt-get -q -y install ntp memcached python-memcache python-mysqldb mysql-server rabbitmq-server python-eventlet euca2ools unzip ntp
-apt-get -q -y -t maverick install nova-api nova-network nova-objectstore nova-scheduler
+apt-get -q -y install nova-api nova-network nova-objectstore nova-scheduler
 
 echo "ENABLED=1" > /etc/default/nova-common
 
@@ -156,8 +156,6 @@ cat > /etc/nova/nova.conf << NOVA_CONF_EOF
 --ec2_host=$CC_HOST_IP
 --ec2_url=http://$CC_HOST_IP:8773/services/Cloud
 --vlan_interface=$VLAN_INTERFACE
---use_project_ca=true
---cnt_vpn_clients=$NUMBER_VPN_CLIENTS
 --max_cores=$MAX_CORES
 --max_gigabytes=$MAX_GBS
 --glance_host=$GLANCE_HOST_IP
@@ -165,11 +163,15 @@ cat > /etc/nova/nova.conf << NOVA_CONF_EOF
 --scheduler_driver=nova.scheduler.simple.SimpleScheduler
 NOVA_CONF_EOF
 
-echo
-echo "###############"
-echo "Setting up LDAP"
-echo "###############"
-echo
+if [[ $VPN_USE == "YES" ]]; then
+
+#Info to be passed into /etc/nova/nova.conf
+cat >> /etc/nova/nova.conf << VPN_CONF_EOF
+--use_project_ca=true
+--cnt_vpn_clients=$NUMBER_VPN_CLIENTS
+VPN_CONF_EOF
+
+fi
 
 LDAP_PORT=389
 
@@ -185,6 +187,12 @@ if [[ $LDAP_USE == "YES" && $PRIMARY_CC_HOST_IP != $CC_HOST_IP ]]; then
 fi
 
 if [ $LDAP_USE == "YES" ]; then
+
+echo
+echo "###############"
+echo "Setting up LDAP"
+echo "###############"
+echo
 
 #Info to be passed into /etc/nova/nova.conf
 cat >> /etc/nova/nova.conf << LDAP_CONF_EOF
@@ -204,12 +212,12 @@ cat >> /etc/nova/nova.conf << LDAP_CONF_EOF
 --region_list=$REGION_LIST
 LDAP_CONF_EOF
 
+echo "Done"
+echo
+
 else
     THIS_REGION=nova
 fi 
-
-echo "Done"
-echo
 
 echo "######################"
 echo "Finalizing MySQL setup"
