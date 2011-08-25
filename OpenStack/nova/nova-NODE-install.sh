@@ -103,7 +103,7 @@ if [ $PACKAGES == "ANSO" ]; then
 elif [ $PACKAGES == "TRUNK" ]; then
     add-apt-repository ppa:nova-core/trunk
 else
-    add-apt-repository ppa:nova-core/release
+    add-apt-repository ppa:openstack-release/2011.2
 fi
 
 apt-get -q update
