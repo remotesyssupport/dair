@@ -1,5 +1,5 @@
 # the packages you want to install RELEASE | ANSO | TRUNK
-PACKAGES=ANSO
+PACKAGES=RELEASE
 
 # IP addresses of the various services
 CC_HOST_IP=DEFAULT_CC_HOST_IP
