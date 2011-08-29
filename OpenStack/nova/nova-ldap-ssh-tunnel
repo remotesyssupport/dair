@@ -19,7 +19,7 @@ usage()
 case $1 in
     start )
         echo "starting ssh tunnel..."
-        ssh -i /root/.ssh/nova_ldap_key -o ServerAliveInterval=5 -g -f -N -L 1389:localhost:389 142.244.197.44
+        ssh -i /root/.ssh/nova_ldap_key -o ServerAliveInterval=5 -g -f -N -L 1389:localhost:389 PRIMARY_CC_HOST_IP
         ps -f -C ssh | grep ssh.*389 | awk '{print $2}' > /var/run/nova/nova_ldap_ssh_tunnel.pid
         ;;
 
