@@ -131,7 +131,7 @@ else
 fi
 
 apt-get -q update
-apt-get -q -y install ntp memcached python-memcache python-mysqldb mysql-server rabbitmq-server python-eventlet euca2ools unzip ntp
+apt-get -q -y install ntp monit memcached python-memcache python-mysqldb mysql-server rabbitmq-server python-eventlet euca2ools unzip ntp
 apt-get -q -y install nova-api nova-network nova-objectstore nova-scheduler
 
 echo "ENABLED=1" > /etc/default/nova-common
@@ -154,7 +154,6 @@ cat > /etc/nova/nova.conf << NOVA_CONF_EOF
 --rabbit_host=$RABBIT_IP
 --s3_host=$S3_HOST_IP
 --ec2_host=$CC_HOST_IP
---ec2_url=http://$CC_HOST_IP:8773/services/Cloud
 --vlan_interface=$VLAN_INTERFACE
 --max_cores=$MAX_CORES
 --max_gigabytes=$MAX_GBS
@@ -179,11 +178,19 @@ if [[ $LDAP_USE == "YES" && $PRIMARY_CC_HOST_IP != $CC_HOST_IP ]]; then
     ssh-keygen -t rsa -N "" -f /root/.ssh/nova_ldap_key
     ssh-copy-id -i /root/.ssh/nova_ldap_key.pub $PRIMARY_CC_HOST_IP
     
-    cp $ABS_PATH/nova-ldap.sh /etc/network/if-up.d/
-    sed -i "s/PRIMARY_CC_HOST_IP/${PRIMARY_CC_HOST_IP}/g" /etc/network/if-up.d/nova-ldap.sh
-    /etc/network/if-up.d/nova-ldap.sh
+    cp $ABS_PATH/nova-ldap-ssh-tunnel /usr/bin/
+    sed -i "s/PRIMARY_CC_HOST_IP/${PRIMARY_CC_HOST_IP}/g" /usr/bin/nova-ldap-ssh-tunnel
+    /usr/bin/nova-ldap-ssh-tunnel start
+    
+    sed -i "s/startup=0/startup=1/g" /etc/default/monit
+    
+    echo "  check process nova_ldap_ssh_tunnel" >> /etc/monit/monitrc
+    echo "    with pidfile /var/run/nova/nova_ldap_ssh_tunnel.pid" >> /etc/monit/monitrc
+    echo "    start program \"/usr/bin/nova-ldap-ssh-tunnel start\"" >> /etc/monit/monitrc
+    echo "    stop program \"/usr/bin/nova-ldap-ssh-tunnel stop\"" >> /etc/monit/monitrc
     
     LDAP_PORT=1389
+    LDAP_HOST_IP=localhost
 fi
 
 if [ $LDAP_USE == "YES" ]; then
@@ -193,6 +200,9 @@ echo "###############"
 echo "Setting up LDAP"
 echo "###############"
 echo
+
+sed -i "s/127.0.0.1/${MEMCACHED_HOST_IP}/g" /etc/memcached.conf
+/etc/init.d/memcached restart
 
 #Info to be passed into /etc/nova/nova.conf
 cat >> /etc/nova/nova.conf << LDAP_CONF_EOF
@@ -343,14 +353,6 @@ echo
 grep -i ERROR /var/log/nova/*
 echo
 echo "Done"
-
-if [[ $PRIMARY_CC_HOST_IP != $CC_HOST_IP ]]; then
-    echo
-    echo "############################################################"
-    echo "Copy the file /root/.ssh/nova_ldap_key to all of your NODEs!"
-    echo "############################################################"
-    echo
-fi
 
 echo "Run the command [source ${CLOUD_ADMIN_CREDENTIALS_DIR}/${THIS_REGION}rc] before trying to work with your new cloud."
 echo

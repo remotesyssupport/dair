@@ -10,6 +10,7 @@ MYSQL_HOST_IP=DEFAULT_CC_HOST_IP
 MYSQL_PW=dummy-pw
 
 # LDAP settings
+# The memcached host IP must be the private IP of this Region
 MEMCACHED_HOST_IP=DEFAULT_CC_HOST_IP
 LDAP_USE=YES
 LDAP_HOST_IP=DEFAULT_CC_HOST_IP
