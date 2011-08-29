@@ -189,6 +189,8 @@ if [[ $LDAP_USE == "YES" && $PRIMARY_CC_HOST_IP != $CC_HOST_IP ]]; then
     echo "    start program \"/usr/bin/nova-ldap-ssh-tunnel start\"" >> /etc/monit/monitrc
     echo "    stop program \"/usr/bin/nova-ldap-ssh-tunnel stop\"" >> /etc/monit/monitrc
     
+    /etc/init.d/monit restart
+    
     LDAP_PORT=1389
     LDAP_HOST_IP=localhost
 fi
