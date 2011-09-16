@@ -178,16 +178,16 @@ if [[ $LDAP_USE == "YES" && $PRIMARY_CC_HOST_IP != $CC_HOST_IP ]]; then
     ssh-keygen -t rsa -N "" -f /root/.ssh/nova_ldap_key
     ssh-copy-id -i /root/.ssh/nova_ldap_key.pub $PRIMARY_CC_HOST_IP
     
-    cp $ABS_PATH/nova-ldap-ssh-tunnel /usr/bin/
-    sed -i "s/PRIMARY_CC_HOST_IP/${PRIMARY_CC_HOST_IP}/g" /usr/bin/nova-ldap-ssh-tunnel
-    /usr/bin/nova-ldap-ssh-tunnel start
+    cp $ABS_PATH/nova-ldap-ssh-tunnel /usr/local/bin/
+    sed -i "s/PRIMARY_CC_HOST_IP/${PRIMARY_CC_HOST_IP}/g" /usr/local/bin/nova-ldap-ssh-tunnel
+    /usr/local/bin/nova-ldap-ssh-tunnel start
     
     sed -i "s/startup=0/startup=1/g" /etc/default/monit
     
     echo "  check process nova_ldap_ssh_tunnel" >> /etc/monit/monitrc
     echo "    with pidfile /var/run/nova/nova_ldap_ssh_tunnel.pid" >> /etc/monit/monitrc
-    echo "    start program \"/usr/bin/nova-ldap-ssh-tunnel start\"" >> /etc/monit/monitrc
-    echo "    stop program \"/usr/bin/nova-ldap-ssh-tunnel stop\"" >> /etc/monit/monitrc
+    echo "    start program \"/usr/local/bin/nova-ldap-ssh-tunnel start\"" >> /etc/monit/monitrc
+    echo "    stop program \"/usr/local/bin/nova-ldap-ssh-tunnel stop\"" >> /etc/monit/monitrc
     
     /etc/init.d/monit restart
     
