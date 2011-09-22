@@ -1,0 +1,381 @@
+#!/usr/bin/python
+#################################################################
+# File:     storage-report
+# Purpose:  Aggregate and report user's memory usage in swift 
+# Author:   Andrew Nisbet
+# Date:     September 14, 2011
+# Version:  0.1 - Sept. 21 2001 - initial release 
+#################################################################
+
+import os
+import sys
+import getopt       # Command line processing.
+import subprocess   # for system calls.
+import simplejson as json # using simplejson for python 2.6 but can just change to json in Python 2.7
+import string       # for atoi()
+import datetime     # for timestamp
+"""Module docstring.
+The script reports on the storage usage in the DAIR swift ecology.
+"""
+
+# Note to reader: I use the term 'account' and 'project' interchangably throughout this documentation. Also note that the script has not been tested with use with sudo just by root. TODO Test with sudo.
+# Method:
+# For each zone (currently Alberta and Quebec)
+# For each account
+# Report totals
+# Report user bytes used by person per group.
+# Assumptions: a user can belong to many projects, projects can exist in any one or multiple zones.
+#
+# The script relies on is built in the python 2.6 environment but is ready for 2.7 with the implementation of
+# the note above concerning importing json.
+#
+# The script makes heavy use of 'swauth-list', and the 'st stat' command.
+#
+# using command: st -A https://swift-ab.dair-atir.canarie.ca:8080/auth/v1.0 -U nisbet:andrew -K XxxxXxxxxx stat
+#
+# Command list looks like this but erase after because of security!
+#root@dair-ua-v01:# swauth-list -p $SWAUTH_AB nisbet
+#andrew
+#root@dair-ua-v01:# swauth-list -p $SWAUTH_AB nisbet andrew
+#nisbet:andrew
+#nisbet
+#.admin
+#root@dair-ua-v01:# swauth-list $SWAUTH_AB nisbet andrew
+#{"groups": [{"name": "nisbet:andrew"}, {"name": "nisbet"}, {"name": ".admin"}], "auth": "plaintext:xxxxxxxxxxx"}
+#root@dair-ua-v01:~/andrew# st -A https://swift-ab.dair-atir.canarie.ca:8080/auth/v1.0 -U nisbet:andrew -K xxxxxxxxxxxx stat
+#   Account: AUTH_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+#Containers: 0
+#   Objects: 0
+#     Bytes: 0
+        
+# ZoneData is just a container for data collected from zones. Its power is that it organizes raw data 
+# from stdin of the swauth-list command and makes it managable for the Zone object to query.
+class ZoneData:
+    """ Zone data is just all the info we need to report encapsulated and abstracted. """
+    # ZoneData data structure looks like this:
+    #   name_name, authority_URL, 'accounts'={'user_name'=[containers, objects, size_bytes]}}.
+    def __init__(self, zone_name, zone_authority):
+        """ Initialize with the variable name for the Zone """
+        self.name = zone_name # not strictly used but could be useful later.
+        self.authority_URL = zone_authority
+        self.accounts = {}
+        self.containers = 0
+        self.objects = 0
+        self.used_bytes = 0
+
+    def set_user(self, account, user_name, user_data):
+        """" Takes stdout from stat and stores it """
+        user_stats = self.accounts[account] # This is populated with keys when we swauth-list on a zone.
+        # test for existence and pass it if it does make new list if not.
+        user_stats[user_name] = ['private', 0, 0, 0] # some of the listed projects have a 'secret' authority.
+        self._update_(user_stats[user_name], user_data) 
+
+    def _update_(self, existing_data, data):
+        """ This method takes nl separated output from the output of st command which produces 
+   Account: AUTH_0xxxxxxxxxxxxxxxxxxxxxxx8
+Containers: 0
+   Objects: 0
+     Bytes: 0
+        """
+        if len(data) == 0: # This happens when the authority key is 'secret' or swauth-list wrote to stderr..
+            return
+        lines = data.splitlines()
+        existing_data[0] = lines[0].split(':')[1].strip() # This snips the numeric value of this field
+        existing_data[1] = string.atoi(lines[1].split(':')[1].strip())
+        self.containers = self.containers + existing_data[1]
+        existing_data[2] = string.atoi(lines[2].split(':')[1].strip())
+        self.objects = self.objects + existing_data[2]
+        existing_data[3] = string.atoi(lines[3].split(':')[1].strip())
+        self.used_bytes = self.used_bytes + existing_data[3]
+
+    def set_accounts(self, accounts):
+        """ Takes stdout input as nl separated string and creates a list of accounts. """
+        # expects stdout nl separated input from swauth_list -p but can be adjusted.
+        for account_name in accounts.splitlines():
+            self.accounts[account_name] = {} # new empty dictionary
+
+    def get_accounts(self):
+        """ Returns a list of all the names of projects, or accounts, within this swift zone. """
+        return self.accounts.keys()
+
+    def get_authority_URL(self):
+        """ Returns the authority URL for the zone """
+        return self.authority_URL
+
+    def get_name(self):
+        """ Returns the name of the zone like SWAUTH_AB etc. """
+        return self.name
+    
+    def get_size(self):
+        """ Returns an integer of the amount of disk space used by the zone. """
+        return self.used_bytes
+
+    def get_project_size(self):
+        """ Returns an integer of the number projects in the zone. """
+        return len(self.accounts.keys())
+
+    def get_user_size(self):
+        """ Reports the number of users over this zone. """
+        total = 0
+        for proj_name in self.accounts.keys():
+            total = total + len(self.accounts[proj_name])
+        return total
+
+    def get_users(self, project):
+        """
+        Param: project - the name of a specific but arbitrary project in this zone.
+        Return list of the users in an account (or project)
+        """
+        return self.accounts[project].keys() 
+
+    def get_user_stat(self, project, name):
+        """ Returns a tuple of the user's stats in the form of ('containers', 'objects', 'bytes', 'name') """
+        stats = self.accounts[project][name]
+        t = []
+        for value in stats[1:]:
+            t.append(self._comify(value))
+        t.append(name)
+        return tuple(t) # value 0 is the authorization key which we don't want
+
+    def _comify(self, num):
+        """ takes a large number and returns trimmed version as string """
+        if num / 1000000000 > 0:
+            return str( num / 1000000000) + '.' + str(num % 1000000000)[0] + ' G'
+        elif num / 1000000 > 0:
+            return str( num / 1000000) + '.' + str(num % 1000000)[0] + ' M'
+        elif num / 1000 > 0:
+            return str( num / 1000) + '.' + str(num % 1000)[0] + ' k'
+        else:
+            return str(num)
+                
+    def get_user_stat_field_total(self, which):
+        """
+        Returns integer of number of containers used in this zone.
+        Param which storage object type to retrieve currently which is 
+        expected to be an int between 1 and 3 matching the index of the user stats fields.
+        """
+        total = 0
+        for proj_name in self.accounts.keys():
+            for user in self.accounts[proj_name].keys():
+                total = total + self.accounts[proj_name][user][which]
+        return total
+        
+
+# Zone is actually all the zones within the swift ecology. It is designed to be able to grow
+# beyond the current 2 zones of AB and QC, but has not been tested in larger environments.
+# TODO: test in environment that has more than one zone.
+class Zone:
+    """ This class is a agregate of zones. """
+    def __init__(self, which='all'):
+        """
+        Param: which the zone of interest
+        Initializes each zone by calling all the external scripts using python's piping mechanism.
+         """
+        # dictionary for all the zones SWAUTH_VAR key and ZoneData as value.
+        self.swauth_zones = {} 
+        self.zone_of_interest = which
+        # get all the vars from env and look for SWAUTH; piping to grep doesn't work
+        all_vars = self.execute_call('env').split('\n')
+        print "collecting user information, this can take some time."
+        for var in all_vars:
+            if 'SWAUTH' in var:
+                # this_zone is array of strings 0 is the SWAUTH_XX var name and 
+                # index 1 holds the key authority URL etc.
+                this_zone = var.split('=') # may have to strip whitespace
+                this_zone_data = ZoneData(this_zone[0], self._get_authority_URL(this_zone[1]))
+                zone_var = os.environ[ this_zone_data.get_name() ]
+                # The -p outputs as standard nl separated string which ZoneData uses.
+                # The contents of the zone_var is not stored.
+                this_zone_data.set_accounts(self.execute_call('swauth-list -p ' + zone_var))
+                self._populate_zone(zone_var, this_zone_data)
+                # Now add the ZoneData to the dictionary
+                self.swauth_zones[this_zone_data.get_name()] = this_zone_data
+
+
+    def _populate_zone(self, zone_var, zone):
+        """ Iterates over a zones accounts and collects user information """
+        for account in zone.get_accounts():
+            users = self.execute_call('swauth-list -p ' + zone_var + ' ' + account).split()
+            for user in users:
+                u_name = '' # user colon seperated name.
+                # {"groups": [{"name": "1143TransitHub:Ian"}, {"name": "1143TransitHub"}, {"name": ".admin"}], "auth": "plaintext:xxxxxxxxxxx"}
+                acc_info = json.loads(self.execute_call('swauth-list ' + zone_var + ' ' + account + ' ' + user))
+                for x in acc_info['groups']: # this holds the list with username, we use this with the -U switch in stat.
+                    if x['name'].find(':') > -1: # found a colon that separates the last name from first name
+                        u_name = x['name']
+                u_key = acc_info['auth'].split(':')[1] # splits the key off the 'plaintext' string.
+                # now get the information from st
+                #print self.execute_call('st -A ' + zone.get_authority_URL() + ' -U ' + u_name + ' -K ' + u_key + ' stat')
+                zone.set_user(account, u_name, self.execute_call('st -A ' + zone.get_authority_URL() + ' -U ' + u_name + ' -K ' + u_key + ' stat'))
+            #break # uncoment this limit the number of accounts of each zone to 1 to speed up testing.
+
+    def _get_authority_URL(self, var_value):
+        """ Returns the authority URL from the environment variable value parameter """
+        values = var_value.split()
+        for value in values:
+            if value.startswith('https'):
+                return value + 'v1.0' # for some reason the value of the variable is missing the version number.
+        return "" # this should throw an exception should not be empty
+
+    def _comify(self, num):
+        """ takes a large number and returns trimmed version as string """
+        if num / 1000000000 > 0:
+            return str( num / 1000000000) + '.' + str(num % 1000000000)[0] + ' G'
+        elif num / 1000000 > 0:
+            return str( num / 1000000) + '.' + str(num % 1000000)[0] + ' M'
+        elif num / 1000 > 0:
+            return str( num / 1000) + '.' + str(num % 1000)[0] + ' k'
+        else:
+            return str(num)
+                
+    def get_zones(self):
+        """ Returns the count of zones requested for check """
+        return self.swauth_zones.keys();
+
+    def execute_call(self, command_and_args):
+        """ returns the contents of a Unix environment  variable """
+        cmd = command_and_args.split()
+        if len(cmd) < 1:
+            return "<no cmd to execute>"
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        return process.communicate()[0]
+
+    def get_total_space(self, zone=""):
+        """ Returns a string value of the total space used in swift. """
+        total = 0
+        if zone != "":
+            total = self.swauth_zones[zone].get_size()
+        else:
+            for zone_key in self.swauth_zones.keys():
+                total = total + self.swauth_zones[zone_key].get_size()
+        #return str(total)
+        return self._comify(total)
+
+    def get_total_projects(self):
+        """
+        Returns an integer of the total number of projects listed in all zones. 
+        Not all zones have all the same projects listted within them.
+        """
+        total_projects = 0
+        for zone_key in self.swauth_zones.keys():
+            total_projects = total_projects + self.swauth_zones[zone_key].get_project_size()
+        return self._comify(total_projects)
+
+    def get_total_users(self):
+        """ Returns an integer of the aggregated number of users in all zones. """
+        total = 0
+        for zone_key in self.swauth_zones.keys():
+            total = total + self.swauth_zones[zone_key].get_user_size()
+        return total
+
+    def get_projects(self, zone):
+        """ Returns a list of projects in a zone """
+        return self.swauth_zones[zone].get_accounts()
+
+    def get_users(self, zone, project):
+        """ Returns a list of the names of users in a zone per project """
+        return self.swauth_zones[zone].get_users(project)
+
+    def get_user_stats(self, zone, project, user):
+        """
+        Returns a tuple of user's usage stats in the format specified
+        in ZoneData.get_user_stat(project, user).
+        """
+        return self.swauth_zones[zone].get_user_stat(project, user)
+        
+    def get_total_containers(self, zone=""):
+        """ Returns a string value of the total space used in swift. """
+        total = 0
+        if zone != "":
+            total = self.swauth_zones[zone].get_user_stat_field_total(1)
+        else:
+            for zone_key in self.swauth_zones.keys():
+                total = total + self.swauth_zones[zone_key].get_user_stat_field_total(1)
+        return self._comify(total)
+
+    def get_total_objects(self, zone=""):
+        """ Returns a string value of the total space used in swift. """
+        total = 0
+        if zone != "":
+            total = self.swauth_zones[zone].get_user_stat_field_total(2)
+        else:
+            for zone_key in self.swauth_zones.keys():
+                total = total + self.swauth_zones[zone_key].get_user_stat_field_total(2)
+        return self._comify(total)
+
+
+############################ global functions ##########################
+def check_mem_usage(requested_zone="all", verbose=True):
+    """ Checks the memory usage of users on swift. """
+    zone = Zone(requested_zone)
+    zone_names = zone.get_zones()
+    total = 0
+    print "=" * 80
+    # Print out header information
+    # timestamp
+    now = datetime.datetime.now()
+    date = now.date()
+    time = now.time()
+    col_width = 20
+    print "Swift usage report: %s %s" % (date, time)
+    print "Total disk space: %s bytes" % zone.get_total_space()
+    for zone_name in zone_names:
+        print "  zone %s: %s bytes" % (zone_name, zone.get_total_space(zone_name))
+
+    print "Total containers: %5s" % zone.get_total_containers()
+    for zone_name in zone_names:
+        print "  zone %s: %5s" % (zone_name, zone.get_total_containers(zone_name))
+
+    print "   Total objects: %5s" % zone.get_total_objects()
+    for zone_name in zone_names:
+        print "  zone %s: %5s" % (zone_name, zone.get_total_objects(zone_name))
+
+    print "projects: %s" % zone.get_total_projects()
+    print "users: %s" % zone.get_total_users()
+    if verbose == False:
+        return
+    print "   %s     %s       %s %s" % ("C", "O", "size", "project:user")
+    for zone_name in zone_names:
+        print '---' + zone_name + '---'
+        for project in zone.get_projects(zone_name):
+            if requested_zone == 'all' or project.find(requested_zone.upper()) > -1:
+                for user in zone.get_users(zone_name, project):
+                    # containers, objects, disk space, name
+                    print "%3s %5s %6s bytes %s" % zone.get_user_stats(zone_name, project, user)
+
+
+def usage():
+  return """
+Usage: storage-report [-vhc, --help, --check-zone="[ab,qc,<all>]"]
+
+    This script queries swift for user usage statistics. 
+    For now those statistics are limited to the amount of 
+    space they are using but is meant to be expanded to 
+    more comprehensive data collection.
+"""
+
+
+def main():
+    # parse command line options
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], "hc:v", ["help", "check-zone="])
+    except getopt.GetoptError, err:
+        print str(err)
+        print usage()
+        sys.exit(2)
+    verbose = False
+    for o, a in opts:
+        if o in ("-c", "--check-zone"):
+            check_mem_usage(a, verbose) # in future you could limit memchecks
+        elif o in ("-h", "--help"):
+            print usage()
+            return 2
+        elif o in ("-v"):
+            verbose = True
+        else:
+            assert False, "unimplemented option '" + o + "'"
+
+    print "done"
+
+if __name__ == "__main__":
+    sys.exit(main())
