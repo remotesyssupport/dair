@@ -140,11 +140,11 @@ nova-manage project quota $PROJECT cores $QUOTA_CORES 1>>$LOG 2>>$ERR
 ### Added by Andrew Nisbet September 26, 2011 ###
 # Now propagate the quotas to the other regions
 log "Setting project quotas for other region(s)..."
-ssh $REGION_QC "nova-manage project quota ${PROJECT} gigabytes ${QUOTA_GIGABYTES} 1>>${LOG} 2>>${ERR} "
-ssh $REGION_QC "nova-manage project quota ${PROJECT} floating_ips ${QUOTA_FLOATING_IPS} 1>>${LOG} 2>>${ERR} "
-ssh $REGION_QC "nova-manage project quota ${PROJECT} instances ${QUOTA_INSTANCES} 1>>${LOG} 2>>${ERR} "
-ssh $REGION_QC "nova-manage project quota ${PROJECT} volumes ${QUOTA_VOLUMES} 1>>${LOG} 2>>${ERR} "
-ssh $REGION_QC "nova-manage project quota ${PROJECT} cores ${QUOTA_CORES} 1>>${LOG} 2>>${ERR} "
+ssh $REGION_QC "nova-manage project quota ${PROJECT} gigabytes ${QUOTA_GIGABYTES}" 1>>$LOG 2>>$ERR
+ssh $REGION_QC "nova-manage project quota ${PROJECT} floating_ips ${QUOTA_FLOATING_IPS}" 1>>$LOG 2>>$ERR
+ssh $REGION_QC "nova-manage project quota ${PROJECT} instances ${QUOTA_INSTANCES}" 1>>$LOG 2>>$ERR
+ssh $REGION_QC "nova-manage project quota ${PROJECT} volumes ${QUOTA_VOLUMES}" 1>>$LOG 2>>$ERR
+ssh $REGION_QC "nova-manage project quota ${PROJECT} cores ${QUOTA_CORES}" 1>>$LOG 2>>$ERR
 ### Added by Andrew Nisbet September 26, 2011 ###
 
 log "Done.  Congratulations!"
