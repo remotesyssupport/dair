@@ -1,0 +1,42 @@
+#!/bin/bash
+
+#Enforcing root user to execute the script
+if [ `whoami` != root ]; then
+    echo "Please run this as the user, 'root'!";
+    exit 1
+fi
+
+usage()
+{
+    echo
+    echo "start/stop/restart the ssh tunnel to the Nova LDAP server."
+    echo
+    echo "    $0 start|stop|restart"
+    echo
+    exit 0
+}
+
+case $1 in
+    start )
+        echo "starting ssh tunnel..."
+        ssh -i /root/.ssh/nova_ldap_key -o ServerAliveInterval=5 -g -f -N -L 1389:localhost:389 PRIMARY_CC_HOST_IP
+        ps -f -C ssh | grep ssh.*389 | awk '{print $2}' > /var/run/nova/nova_ldap_ssh_tunnel.pid
+        ;;
+
+    stop )
+        echo "stopping ssh tunnel..."
+        kill `cat /var/run/nova/nova_ldap_ssh_tunnel.pid`
+        rm -f /var/run/nova/nova_ldap_ssh_tunnel.pid
+        ;;
+
+    restart )
+        echo "re-starting ssh tunnel..."
+        dashboard stop
+        dashboard start
+        ;;
+
+    *)
+        usage
+        ;;
+esac
+

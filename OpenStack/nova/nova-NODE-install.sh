@@ -144,7 +144,6 @@ cat > /etc/nova/nova.conf << NOVA_CONF_EOF
 --rabbit_host=$RABBIT_IP
 --s3_host=$S3_HOST_IP
 --ec2_host=$CC_HOST_IP
---ec2_url=http://$CC_HOST_IP:8773/services/Cloud
 --vlan_interface=$VLAN_INTERFACE
 --glance_host=$GLANCE_HOST_IP
 --image_service=nova.image.glance.GlanceImageService
