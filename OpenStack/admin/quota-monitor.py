@@ -21,8 +21,10 @@ NOVA_CONF = "/home/cybera/dev/nova.conf" # nova.conf -- change for production.
 
 
 # sql queries:
+# basic passing:
+#		ssh root@openstack1.cybera.ca 'mysql -uroot -pxxxxxxxxxx nova -e "show tables;"'
 # total instances by project:
-# 		select project_id, count(state_description) from instances where state_description='running' group by project_id;
+# 		select project_id, count(state) from instances where state=1 group by project_id;
 # total size of all volumes by project gigbytes:
 # 		select project_id, sum(size) from volumes where attach_status='attached' group by project_id;
 # total volumes by project:
@@ -31,11 +33,16 @@ NOVA_CONF = "/home/cybera/dev/nova.conf" # nova.conf -- change for production.
 # 		select project_id, count(deleted) from floating_ips where deleted=0 group by project_id;
 # CPUs in use by a project:
 # 		select project_id, sum(vcpus) from instances where state_description='running' group by project_id;
-
-
-class Zones:
+#		select project_id, sum(vcpus) from instances where state=1 group by project_id;
+class ZoneQueryManager:
 	def __init__(self):
-		self.regions = {}
+		self.Q_PROJECT_INSTANCES = "\"select project_id, count(state) from instances where state=1 group by project_id;\""
+		self.Q_PROJECT_GIGABYTES = """ "select project_id, sum(size) from volumes where attach_status=\\'attached\\' group by project_id;" """ # returns empty set not expected '0'
+		self.Q_PROJECT_VOLUMES   = "\"select project_id, count(size) from volumes where attach_status=\'attached\' group by project_id;\""
+		self.Q_PROJECT_FLOAT_IPS = "\"select project_id, count(deleted) from floating_ips where deleted=0 group by project_id;\""
+		self.Q_PROJECT_CPUS      = "\"select project_id, sum(vcpus) from instances where state=1 group by project_id;\""
+		self.regions = {} # {'full_name' = ip}
+		self.instances = {} # {'full_name' = Quota_obj}
 		self.password = None
 		# this requires two greps of the nova.conf file but could be done in one.
 		# get the regions like: --region_list=alberta=208.75.74.10,quebec=208.75.75.10
@@ -59,11 +66,21 @@ class Zones:
 		process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 		return process.communicate()[0]
 		
-	def get_password(self):
-		return self.password
+	def get_zone_snapshots(self):
+		for zone in self.regions.keys():
+			zone_query_results = Quota()
+			self._query_(zone, zone_query_results)
+			self.instances[zone] = zone_query_results
+		print self.instances
+
+	def _query_(self, zone, results):
+		print "querying " + zone + " for instances..."
+		ssh_cmd = "ssh root@" + self.regions[zone]
+		sql_cmd_prefix = " 'mysql -uroot -p" + self.password + " nova -e "
+		sql_cmd_suffix = "'"
 		
-	def get_regions(self):
-		return self.regions
+		print ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_GIGABYTES + sql_cmd_suffix
+		results.set_quota('floating_ips', 77)
 		
 # metadata_items: 128
 # gigabytes: 100
@@ -77,8 +94,8 @@ class Zones:
 
 class Quota:
 	""" 
-		This class represents a project's quotas. It also includes a flag to 
-		determine if the project stackholders have been alerted to overquotas.
+	This class represents a project's quotas. It also includes a flag to 
+	determine if the project stackholders have been alerted to overquotas.
 	"""
 			
 	def __init__(self, flags=0, meta=128, Gb=100, f_ips=10, insts=10, vols=10, cors=20):
@@ -180,9 +197,15 @@ def set_quotas(zone, quotas):
 	pass
 	
 def balance_quotas(quotas):
-	#read_previous_quotas(quotas)
-	zoneData = Zones() # this will now contain the regions and sql password
-	
+	"""
+	Balances quotas. Run from cron this function runs once per preset time period.
+	The formula is: Qnow = Qbaseline - Iother_zones where
+	Qnow: the quota for a specific but arbitrary zone at this cycle
+	Qbaseline: the quota for the project assigned when the project was created
+	Iother: the number of instances of a resource being consumed in all other zones.
+	"""
+	zoneManager = ZoneQueryManager() # this will now contain the regions and sql password
+	zoneManager.get_zone_snapshots()
 
 def usage():
 	return """
