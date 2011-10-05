@@ -80,6 +80,42 @@ class ZoneQueryManager:
 		sql_cmd_suffix = "'"
 		
 		print ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_GIGABYTES + sql_cmd_suffix
+		print ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_FLOAT_IPS + sql_cmd_suffix
+		print ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_INSTANCES + sql_cmd_suffix
+		print ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_VOLUMES + sql_cmd_suffix
+		print ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_CPUS + sql_cmd_suffix
+		# returns 'qc':
+		# project_id	sum(size)
+		# 1003unbc	10
+		# 1007Benbria	20
+		# 1009HeadwallSoftware	100
+		# 1037Innovative	80
+		# 1041STC	10
+		# 1047VRStorm	10
+		# 1143TransitHub	60
+		# AgoraMobile	176
+		# Mindr	110
+		# spawn	10
+		#
+		# returns 'ab':
+		# project_id	sum(size)
+		# 1002Gnowit	240
+		# 1012BiOS	300
+		# 1016LiveReach3	35
+		# 1037Innovative	20
+		# 1041STC	10
+		# 1042IgnitePlayBeta	10
+		# 1045KiribatuRMS	200
+		# 1047VRStorm	10
+		# 1051BGPmon	170
+		# 1052idQuanta	16
+		# 1057TRLabs1	100
+		# 1058iRok2	25
+		# 1059InsideMapp	10
+		# 1079ProjectWhiteCard	8
+		# 1150Dyno	20
+		# Metafor	8
+		# moodle	30
 		results.set_quota('floating_ips', 77)
 		
 # metadata_items: 128
