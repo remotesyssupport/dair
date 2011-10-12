@@ -129,11 +129,11 @@ for REGION in $REGION_LIST; do
 	euca-authorize -S $SECRET_KEY -A $ACCESS_KEY -U $EC2_URL -P icmp -t -1:-1 default 1>>$LOG 2>>$ERR 
 	log "Setting project quotas..."
 	ADDRESS=$(echo $REGION | cut -d '=' -f2)
-	ssh $ADDRESS "nova-manage project quota ${PROJECT} gigabytes ${QUOTA_GIGABYTES}" 1>>$LOG 2>>$ERR
-	ssh $ADDRESS "nova-manage project quota ${PROJECT} floating_ips ${QUOTA_FLOATING_IPS}" 1>>$LOG 2>>$ERR
-	ssh $ADDRESS "nova-manage project quota ${PROJECT} instances ${QUOTA_INSTANCES}" 1>>$LOG 2>>$ERR
-	ssh $ADDRESS "nova-manage project quota ${PROJECT} volumes ${QUOTA_VOLUMES}" 1>>$LOG 2>>$ERR
-	ssh $ADDRESS "nova-manage project quota ${PROJECT} cores ${QUOTA_CORES}" 1>>$LOG 2>>$ERR
+	ssh -o StrictHostKeyChecking=no $ADDRESS "nova-manage project quota ${PROJECT} gigabytes ${QUOTA_GIGABYTES}" 1>>$LOG 2>>$ERR
+	ssh -o StrictHostKeyChecking=no $ADDRESS "nova-manage project quota ${PROJECT} floating_ips ${QUOTA_FLOATING_IPS}" 1>>$LOG 2>>$ERR
+	ssh -o StrictHostKeyChecking=no $ADDRESS "nova-manage project quota ${PROJECT} instances ${QUOTA_INSTANCES}" 1>>$LOG 2>>$ERR
+	ssh -o StrictHostKeyChecking=no $ADDRESS "nova-manage project quota ${PROJECT} volumes ${QUOTA_VOLUMES}" 1>>$LOG 2>>$ERR
+	ssh -o StrictHostKeyChecking=no $ADDRESS "nova-manage project quota ${PROJECT} cores ${QUOTA_CORES}" 1>>$LOG 2>>$ERR
 done
 
 
