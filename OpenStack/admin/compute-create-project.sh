@@ -5,7 +5,6 @@ LOG="$LOG_DIR/compute-create-project.log"
 ERR="$LOG_DIR/compute-create-project-error.log"
 VENV="/usr/local/openstack-dashboard/dair/openstack-dashboard/tools/with_venv.sh"
 MANAGE="/usr/local/openstack-dashboard/dair/openstack-dashboard/dashboard/manage.py"
-REGION_QC="root@208.75.75.10"
 
 set -o nounset
 
@@ -128,24 +127,15 @@ for REGION in $REGION_LIST; do
 	euca-authorize -S $SECRET_KEY -A $ACCESS_KEY -U $EC2_URL -P tcp -p 22 -s 0.0.0.0/0 default 1>>$LOG 2>>$ERR 
 	euca-authorize -S $SECRET_KEY -A $ACCESS_KEY -U $EC2_URL -P tcp -p 80 -s 0.0.0.0/0 default 1>>$LOG 2>>$ERR 
 	euca-authorize -S $SECRET_KEY -A $ACCESS_KEY -U $EC2_URL -P icmp -t -1:-1 default 1>>$LOG 2>>$ERR 
+	log "Setting project quotas..."
+	ADDRESS=$(echo $REGION | cut -d '=' -f2)
+	ssh $ADDRESS "nova-manage project quota ${PROJECT} gigabytes ${QUOTA_GIGABYTES}" 1>>$LOG 2>>$ERR
+	ssh $ADDRESS "nova-manage project quota ${PROJECT} floating_ips ${QUOTA_FLOATING_IPS}" 1>>$LOG 2>>$ERR
+	ssh $ADDRESS "nova-manage project quota ${PROJECT} instances ${QUOTA_INSTANCES}" 1>>$LOG 2>>$ERR
+	ssh $ADDRESS "nova-manage project quota ${PROJECT} volumes ${QUOTA_VOLUMES}" 1>>$LOG 2>>$ERR
+	ssh $ADDRESS "nova-manage project quota ${PROJECT} cores ${QUOTA_CORES}" 1>>$LOG 2>>$ERR
 done
 
-log "Setting project quotas..."
-nova-manage project quota $PROJECT gigabytes $QUOTA_GIGABYTES 1>>$LOG 2>>$ERR 
-nova-manage project quota $PROJECT floating_ips $QUOTA_FLOATING_IPS 1>>$LOG 2>>$ERR 
-nova-manage project quota $PROJECT instances $QUOTA_INSTANCES 1>>$LOG 2>>$ERR 
-nova-manage project quota $PROJECT volumes $QUOTA_VOLUMES 1>>$LOG 2>>$ERR 
-nova-manage project quota $PROJECT cores $QUOTA_CORES 1>>$LOG 2>>$ERR 
-
-### Added by Andrew Nisbet September 26, 2011 ###
-# Now propagate the quotas to the other regions
-log "Setting project quotas for other region(s)..."
-ssh $REGION_QC "nova-manage project quota ${PROJECT} gigabytes ${QUOTA_GIGABYTES}" 1>>$LOG 2>>$ERR
-ssh $REGION_QC "nova-manage project quota ${PROJECT} floating_ips ${QUOTA_FLOATING_IPS}" 1>>$LOG 2>>$ERR
-ssh $REGION_QC "nova-manage project quota ${PROJECT} instances ${QUOTA_INSTANCES}" 1>>$LOG 2>>$ERR
-ssh $REGION_QC "nova-manage project quota ${PROJECT} volumes ${QUOTA_VOLUMES}" 1>>$LOG 2>>$ERR
-ssh $REGION_QC "nova-manage project quota ${PROJECT} cores ${QUOTA_CORES}" 1>>$LOG 2>>$ERR
-### Added by Andrew Nisbet September 26, 2011 ###
 
 log "Done.  Congratulations!"
 log "Please review '$LOG' and '$ERR' for more details"

@@ -118,6 +118,17 @@ class ZoneQueryManager:
 		# moodle	30
 		results.set_quota('floating_ips', 77)
 		
+	def _parse_results_(table):
+		""" Takes a table output on stdout and returns it as a dictionary of results project=value. """
+		results = {}
+		if len(table) < 1: # empty set test -- naive test fix me
+			return results
+		rows = table.splitlines()
+		for row in rows:
+			data = row.split()
+			results[data[0]] = data[1] # project_id = [0], value = [1]
+		return results
+		
 # metadata_items: 128
 # gigabytes: 100
 # floating_ips: 5
