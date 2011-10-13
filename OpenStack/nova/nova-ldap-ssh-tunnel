@@ -31,8 +31,8 @@ case $1 in
 
     restart )
         echo "re-starting ssh tunnel..."
-        dashboard stop
-        dashboard start
+        nova-ldap-ssh-tunnel stop
+        nova-ldap-ssh-tunnel start
         ;;
 
     *)
