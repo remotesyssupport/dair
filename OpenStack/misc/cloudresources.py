@@ -8,6 +8,7 @@ import re
 # available resources for each compute node plus the cumulative totals
 # for each zone
 
+web.config.debug = False
 urls = ('/', 'CloudResources')
 app = web.application(urls, globals())
 
