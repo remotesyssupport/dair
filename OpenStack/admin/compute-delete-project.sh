@@ -26,7 +26,6 @@ function delete_project()
 {
 	EC2_URL=$1
 	echo "deleting project from $EC2_URL"
-	return
 	# Use project admin's credentials
 	ADMIN="$PROJECT-admin"
 	EXPORTS=$(nova-manage user exports $ADMIN)
