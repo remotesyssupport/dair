@@ -5,16 +5,8 @@
 # Must be run from the management node
 
 
-NOVA_CONF='/etc/nova/nova.conf'
-r=`grep region_list ${NOVA_CONF} | cut -d'=' -f4 | cut -d',' -f1`
-if [ -z $r ]
-then
-	# then this is the sandbox or has only one zone.
-	REGIONS[0]=`grep region_list ${NOVA_CONF} | cut -d'=' -f3`
-else
-	REGIONS[0]=`grep region_list ${NOVA_CONF} | cut -d'=' -f4`
-	REGIONS[1]=`grep region_list ${NOVA_CONF} | cut -d'=' -f3 | cut -d',' -f1`
-fi
+#NOVA_CONF='/etc/nova/nova.conf'
+NOVA_CONF='/home/cybera/dev/nova.conf'
 
 
 if [[ $EUID -ne 0 ]]; then
@@ -38,6 +30,7 @@ function delete_project()
 	fi
 	EC2_URL=$1
 	echo "deleting project from $EC2_URL"
+	return
 	# Use project admin's credentials
 	ADMIN="$PROJECT-admin"
 	EXPORTS=$(nova-manage user exports $ADMIN)
@@ -135,12 +128,12 @@ function delete_project()
 	echo "Project $PROJECT deleted."
 }
 
+REGION_LIST=$(grep region_list ${NOVA_CONF} | sed 's/--region_list=//' | sed 's/,/ /g')
 
-# for each region from the nova.conf file...
-for IP in "${REGIONS[@]}"
-do
-	echo "Deleting project from $IP..."
+for REGION in $REGION_LIST; do
+	IP=`echo $REGION | cut -d'=' -f2`
 	region="https://$IP:8772"
+	echo $region
 	delete_project region
 done
 
