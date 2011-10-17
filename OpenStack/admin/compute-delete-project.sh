@@ -6,8 +6,16 @@
 
 
 NOVA_CONF='/etc/nova/nova.conf'
-REGIONS[0]=`grep region_list ${NOVA_CONF} | cut -d'=' -f4`
-REGIONS[1]=`grep region_list ${NOVA_CONF} | cut -d'=' -f3 | cut -d',' -f1`
+r=`grep region_list ${NOVA_CONF} | cut -d'=' -f4 | cut -d',' -f1`
+if [ -z $r ]
+then
+	# then this is the sandbox or has only one zone.
+	REGIONS[0]=`grep region_list ${NOVA_CONF} | cut -d'=' -f3`
+else
+	REGIONS[0]=`grep region_list ${NOVA_CONF} | cut -d'=' -f4`
+	REGIONS[1]=`grep region_list ${NOVA_CONF} | cut -d'=' -f3 | cut -d',' -f1`
+fi
+
 
 if [[ $EUID -ne 0 ]]; then
 	echo "This script must be run as root"
