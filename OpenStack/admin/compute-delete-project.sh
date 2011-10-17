@@ -24,9 +24,12 @@ fi
 # This function does all the project deleting by zone.
 function delete_project()
 {
-	
+	if [ -z "$1" ]  # Is parameter #1 zero length?
+	then
+		return  # Or no parameter passed can happen on sandbox where there is only one zone
+	fi
+	EC2_URL=$1
 	echo "deleting project from $EC2_URL"
-	return
 	# Use project admin's credentials
 	ADMIN="$PROJECT-admin"
 	EXPORTS=$(nova-manage user exports $ADMIN)
@@ -46,7 +49,6 @@ function delete_project()
 
 	SECRET_KEY=$(echo "$EXPORTS" | grep EC2_SECRET_KEY | cut -d '=' -f2)
 	ACCESS_KEY=$(echo "$EXPORTS" | grep EC2_ACCESS_KEY | cut -d '=' -f2):$PROJECT
-	#EC2_URL=$(grep ec2_url /etc/nova/nova.conf | cut -d '=' -f2)
 
 	echo "Deleting images..."
 	IMAGES=$(euca-describe-images -s $SECRET_KEY -a $ACCESS_KEY -U $EC2_URL | grep "	private	" | cut -f2)
@@ -130,7 +132,8 @@ function delete_project()
 for IP in "${REGIONS[@]}"
 do
 	echo "Deleting project from $IP..."
-	EC2_URL="https://$IP:8772"
+	region="https://$IP:8772"
+	delete_project region
 done
 
 exit 0
