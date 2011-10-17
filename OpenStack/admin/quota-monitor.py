@@ -23,7 +23,8 @@ NOVA_CONF = "/home/cybera/dev/nova.conf" # nova.conf -- change for production.
 
 class QuotaLogger:
 	""" Logs events of interest """
-	LOG_FILE = "/var/log/dair/quota-monitor.log" # log file
+	#LOG_FILE = "/var/log/dair/quota-monitor.log" # log file
+	LOG_FILE = "quota-monitor.log" # log file
 	def __init__(self):
 		self.logger = logging.getLogger('quota-monitor')
 		hdlr = logging.FileHandler(QuotaLogger.LOG_FILE)
@@ -46,22 +47,38 @@ class ZoneInstance:
 				pass
 			project_instance.set_quota(which_quota, project_count[project])
 			self.instances[project] = project_instance
-			print project_instance
+			#print project_instance
 			
-	# this method accumulates all the zone_instance values.
+	# this method aggregates the argument zone_instance's values with this one.
 	def __sum__(self, other_zone):
-		"""Given another zone_instance add its values to this zone's values."""
+		"""
+		Given another zone_instance add its values to this zone's values. The
+		net result is that this object will contain the sum of resources from 
+		the second zone, and this zone.
+		"""
 		# zone_instance = {'project': Quota}, so for all the projects running...
-		for project in self.instances.keys():
-			other_resource = None
+		for project in other_zone.get_projects():
+			my_quota = None
 			try:
-				other_resource = other_zone[project]
+				my_quota = self.instances[project]
 			except KeyError: # this project isn't using resources in other_zone.
-				continue
-			my_quota = self.instances[project]
-			my_quota.__add__(other_resource)
+				my_quota = Quota()
+			my_quota.__add__(other_zone.get_resources(project))
+			self.instances[project] = my_quota
 			
-			
+	def get_projects(self):
+		return self.instances.keys()
+		
+	def get_resources(self, project):
+		"""
+		Returns the running instances of a given project name or an empty quota
+		object if the project doesn't exist. The resources that a project that
+		doesn't exist = 0.
+		"""
+		try:
+			return self.instances[project]
+		except KeyError:
+			return Quota()
 		
 # sql queries:
 # basic passing:
@@ -110,15 +127,21 @@ class ZoneQueryManager:
 		return process.communicate()[0]
 		
 	def get_zone_resource_snapshots(self):
+		"""
+		Run queries of resources being used in each zone
+		and stores the results in the instances dictionary
+		"""
 		for zone in self.regions.keys():
 			# populate the zone's project instances
 			zone_instance_data = ZoneInstance()
 			self.__query_project_statuses__(zone, zone_instance_data)
 			self.instances[zone] = zone_instance_data
-		#print self.instances
 
 	def __query_project_statuses__(self, zone, zone_project_instances):
-		print "querying " + zone + " for instances..."
+		"""
+		This method takes a zone instance and populates it with current
+		values via queries to the database.
+		"""
 		ssh_cmd = "ssh root@" + self.regions[zone]
 		sql_cmd_prefix = " 'mysql -uroot -p" + self.password + " nova -e "
 		sql_cmd_suffix = "'"
@@ -130,37 +153,13 @@ class ZoneQueryManager:
 		if zone == 'quebec':
 			cmd_result = """
 			project_id	sum(size)
-			1003unbc	10
-			1007Benbria	20
-			1009HeadwallSoftware	100
-			1037Innovative	80
-			1041STC	10
-			1047VRStorm	10
-			1143TransitHub	60
-			AgoraMobile	176
-			Mindr	110
-			spawn	10
+			1003unbc	30
+			project_a	99
 			"""
-		else:
-			# returns 'ab':
+		else: # zone == 'ab':
 			cmd_result = """project_id	sum(size)
-			1002Gnowit	240
-			1012BiOS	300
-			1016LiveReach3	35
-			1037Innovative	20
-			1041STC	10
-			1042IgnitePlayBeta	10
-			1045KiribatuRMS	200
-			1047VRStorm	10
-			1051BGPmon	170
-			1052idQuanta	16
-			1057TRLabs1	100
-			1058iRok2	25
-			1059InsideMapp	10
-			1079ProjectWhiteCard	8
-			1150Dyno	20
-			Metafor	8
-			moodle	30
+			project_d	199
+			1003unbc	10
 			"""
 		result_dict = self.__parse_query_result__(cmd_result)
 		zone_project_instances.set_instance_count_per_project(Quota.G, result_dict)
@@ -172,7 +171,6 @@ class ZoneQueryManager:
 		zone_project_instances.set_instance_count_per_project(Quota.V, result_dict)
 		#print ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_CPUS + sql_cmd_suffix
 		zone_project_instances.set_instance_count_per_project(Quota.C, result_dict)
-	
 		
 	def connection_is_open(self):
 		return True
@@ -195,12 +193,17 @@ class ZoneQueryManager:
 			if z == zone:
 				continue
 			else:
-				other_zones_resources.__sum__(self.instances[zone]) # add the project quotas from the other snapshot(s)
+				other_zones_resources.__sum__(self.instances[z]) # add the project quotas from the other snapshot(s)
 		return other_zones_resources
 		
-	def compute_zone_quotas(self, quotas, other_zones_resources):
-		pass
+	def compute_zone_quotas(self, zone, baseline_quotas, other_zones_resources):
 		#new_quotas = zoneManager.compute_zone_quotas(quotas, other_zones_resources)
+		new_quota = Quota()
+		for project in other_zones_resources.get_projects():
+			print project
+			# for each project in this zone subtract the projects total instances
+			# in other zones from the baseline_quotas 
+			
 		
 	def __parse_query_result__(self, table):
 		""" 
@@ -264,7 +267,7 @@ class Quota:
 		"""
 		for quota_name in self.quota.keys():
 			try:
-				self.quota[quota_name] = self.quota[quota_name] + quota[quota_name]
+				self.quota[quota_name] = self.quota[quota_name] + quota.get_quota(quota_name)
 			except KeyError:
 				pass # mismatched quotas don't get added to this object that is
 					 # a quota must exist in both quota objects for it to be added
@@ -286,7 +289,7 @@ class Quota:
 			else:
 				vs = string.atoi(vs)
 				self.quota[name] = vs # possible to set a quota that doesn't exist by misspelling its name
-			print "name = " + name + " value = " + str(vs)
+			#print "name = " + name + " value = " + str(vs)
 		if project_name == None or project_name == "":
 			# project name not specified in file throw exception
 			log = QuotaLogger()
@@ -377,7 +380,7 @@ def read_baseline_quota_file():
 				raise QuotaException(msg)
 			# save the project's quotas from file
 			quotas[name] = project_quota
-		print quotas
+		#print quotas
 		
 # There has to be a way to reset the quotas to the baseline for all groups 
 # in the case that there is a problem and the quotas get out of synch.
@@ -415,8 +418,9 @@ def balance_quotas():
 	quotas = read_baseline_quota_file()	
 	zoneManager.get_zone_resource_snapshots()
 	for zone in zoneManager.get_zones():
-		other_zones_resources = zoneManager.get_other_zones_current_resources(zone) ####### continue here #####
-		#new_quotas = zoneManager.compute_zone_quotas(quotas, other_zones_resources)
+		other_zones_resources = zoneManager.get_other_zones_current_resources(zone)
+		print "I am zone " + zone
+		new_quotas = zoneManager.compute_zone_quotas(zone, quotas, other_zones_resources)
 		#zoneManager.set_quotas(zone, new_quotas)
 		#if new_quotas.is_over_quota():
 		#	log = QuotaLogger()
