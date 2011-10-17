@@ -5,8 +5,8 @@
 # Must be run from the management node
 
 
-#NOVA_CONF='/etc/nova/nova.conf'
-NOVA_CONF='/home/cybera/dev/nova.conf'
+NOVA_CONF='/etc/nova/nova.conf'
+#NOVA_CONF='/home/cybera/dev/nova.conf'
 
 
 if [[ $EUID -ne 0 ]]; then
@@ -134,7 +134,7 @@ for REGION in $REGION_LIST; do
 	IP=`echo $REGION | cut -d'=' -f2`
 	region="https://$IP:8772"
 	echo $region
-	delete_project region
+	delete_project $region
 done
 
 exit 0
