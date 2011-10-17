@@ -5,8 +5,8 @@
 # Must be run from the management node
 
 
-NOVA_CONF='/etc/nova/nova.conf'
-#NOVA_CONF='/home/cybera/dev/nova.conf'
+#NOVA_CONF='/etc/nova/nova.conf'
+NOVA_CONF='/home/cybera/dev/nova.conf'
 
 
 if [[ $EUID -ne 0 ]]; then
@@ -24,10 +24,6 @@ fi
 # This function does all the project deleting by zone.
 function delete_project()
 {
-	if [ -z "$1" ]  # Is parameter #1 zero length?
-	then
-		return  # Or no parameter passed can happen on sandbox where there is only one zone
-	fi
 	EC2_URL=$1
 	echo "deleting project from $EC2_URL"
 	return
@@ -133,8 +129,7 @@ REGION_LIST=$(grep region_list ${NOVA_CONF} | sed 's/--region_list=//' | sed 's/
 for REGION in $REGION_LIST; do
 	IP=`echo $REGION | cut -d'=' -f2`
 	region="https://$IP:8772"
-	echo $region
-	delete_project $region
+	delete_project "$region"
 done
 
 exit 0
