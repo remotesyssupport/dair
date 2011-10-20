@@ -197,13 +197,30 @@ class ZoneQueryManager:
 		return other_zones_resources
 		
 	def compute_zone_quotas(self, zone, baseline_quotas, other_zones_resources):
+		"""
+		Given a zone and baseline quotas for a project returns baseline_quotas 
+		ZoneInstance object with modified quota values.
+		param zone: the target zone to set quotas for
+		param baseline_quotas: the quotas a project is entitled to, will be 
+		modified to new permitted quotas for a zone.
+		param other_zone_resources: a ZoneInstance with all the other zones in-use
+		resources aggregated.
+		return: ZoneInstance object with new quotas.
+		"""
 		#new_quotas = zoneManager.compute_zone_quotas(quotas, other_zones_resources)
 		new_quota = Quota()
-		for project in other_zones_resources.get_projects():
-			print project
+		new_quotas = {}
+		for project in baseline_quotas.keys():
+			#print "for project: " + project + " resources are ",
+			# if the zone doesn't have a project by that name returns a zero-ed quota.
+			resources = other_zones_resources.get_resources(project)
+			#print resources,
 			# for each project in this zone subtract the projects total instances
-			# in other zones from the baseline_quotas
-			
+			new_quota = baseline_quotas[project].__minus__(resources)
+			#print "so new quota is " + str(new_quota)
+			# add the new quotas for this project to the return dictionary.
+			new_quotas[project] = new_quota
+		return new_quotas
 		
 	def __parse_query_result__(self, table):
 		""" 
@@ -271,6 +288,37 @@ class Quota:
 			except KeyError:
 				pass # mismatched quotas don't get added to this object that is
 					 # a quota must exist in both quota objects for it to be added
+					 
+	def __minus__(self, quota):
+		"""
+		Computes difference between minuend (this quota) and subtrahend (arg quota)
+		and returns a new quota.
+		param quota: the subtrahend quota
+		return: new difference quota **can be a negative value**
+		"""
+		return_quota = self.__clone__()
+		print "minus beg:", return_quota
+		print "minus quo:", quota
+		for key in self.quota.keys():
+			return_quota.set_quota(key, return_quota.get_quota(key) - quota.get_quota(key)) # this can be a neg value.
+			
+		print "minus end:", return_quota
+		return return_quota
+		
+	def __clone__(self):
+		""" 
+		Returns a clone of this quota using deep copy.
+		>>>a = Quota(0, 128, 100, 10, 10, 10, 20)
+		<BLANKLINE>
+		>>>b = a.__clone__()
+		<BLANKLINE>
+		>>>print b
+		'flags: 0, metadata_items: 128, gigabytes: 100, floating_ips: 10, instances: 10, volumes: 10, cores: 20'
+		"""
+		new_quota = Quota()
+		for key in self.quota.keys():
+			new_quota.set_quota(key, self.quota[key])
+		return new_quota
 	
 	# reads lines from a file and if the values are '=' separated it will assign the named quota the '=' value.
 	# WARNING: If the quota name is spelt incorrectly the default value is used.
@@ -381,6 +429,7 @@ def read_baseline_quota_file():
 			# save the project's quotas from file
 			quotas[name] = project_quota
 		#print quotas
+	return quotas
 		
 # There has to be a way to reset the quotas to the baseline for all groups 
 # in the case that there is a problem and the quotas get out of synch.
