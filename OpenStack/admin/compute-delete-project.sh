@@ -5,8 +5,7 @@
 # Must be run from the management node
 
 
-#NOVA_CONF='/etc/nova/nova.conf'
-NOVA_CONF='/home/cybera/dev/nova.conf'
+NOVA_CONF='/etc/nova/nova.conf'
 
 
 if [[ $EUID -ne 0 ]]; then
@@ -93,34 +92,6 @@ function delete_project()
 	#	echo $SNAPSHOTS | xargs -n1 euca-delete-snapshot -s $SECRET_KEY -a $ACCESS_KEY -U $EC2_URL
 	#fi
 
-	echo "Deleting users..."
-	LDAP_ADDR=$(sed -n 's/--ldap_url=ldap:\/\/\(.\+\)/\1/p' $NOVA_CONF)
-	LDAP_USER=$(sed -n 's/--ldap_user_dn=\(.\+\)/\1/p' $NOVA_CONF)
-	LDAP_PW=$(sed -n 's/--ldap_password=\(.\+\)/\1/p' $NOVA_CONF)
-	LDAP_SEARCHBASE="ou=Groups,$(echo $LDAP_USER | grep -o 'dc=.\+')"
-	USERS=$(ldapsearch -b "cn=$PROJECT,$LDAP_SEARCHBASE" -D $LDAP_USER -h $LDAP_ADDR -xw $LDAP_PW | sed -n 's/member: uid=\([^,]\+\).\+/\1/p' | grep -xv $ADMIN | sort | uniq)
-
-	VENV="/usr/local/openstack-dashboard/dair/openstack-dashboard/tools/with_venv.sh"
-	MANAGE="/usr/local/openstack-dashboard/dair/openstack-dashboard/dashboard/manage.py"
-
-	if [[ $USERS != '' ]]; then
-		echo $USERS | xargs -n1 nova-manage user delete
-
-		# Delete dashboard users
-		for USER in $USERS; do
-			$VENV $MANAGE deleteuser --username=$USER --noinput
-		done
-	fi
-
-	echo "Deleting project..."
-	nova-manage project delete $PROJECT
-	nova-manage project scrub $PROJECT
-
-	echo "Deleting project admin..."
-	nova-manage user delete $ADMIN
-	$VENV $MANAGE deleteuser --username=$ADMIN --noinput
-
-	echo "Project $PROJECT deleted."
 }
 
 REGION_LIST=$(grep region_list ${NOVA_CONF} | sed 's/--region_list=//' | sed 's/,/ /g')
@@ -130,5 +101,35 @@ for REGION in $REGION_LIST; do
 	region="https://$IP:8772"
 	delete_project "$region"
 done
+
+# LDAP 
+echo "Deleting users..."
+LDAP_ADDR=$(sed -n 's/--ldap_url=ldap:\/\/\(.\+\)/\1/p' $NOVA_CONF)
+LDAP_USER=$(sed -n 's/--ldap_user_dn=\(.\+\)/\1/p' $NOVA_CONF)
+LDAP_PW=$(sed -n 's/--ldap_password=\(.\+\)/\1/p' $NOVA_CONF)
+LDAP_SEARCHBASE="ou=Groups,$(echo $LDAP_USER | grep -o 'dc=.\+')"
+USERS=$(ldapsearch -b "cn=$PROJECT,$LDAP_SEARCHBASE" -D $LDAP_USER -h $LDAP_ADDR -xw $LDAP_PW | sed -n 's/member: uid=\([^,]\+\).\+/\1/p' | grep -xv $ADMIN | sort | uniq)
+
+VENV="/usr/local/openstack-dashboard/dair/openstack-dashboard/tools/with_venv.sh"
+MANAGE="/usr/local/openstack-dashboard/dair/openstack-dashboard/dashboard/manage.py"
+
+if [[ $USERS != '' ]]; then
+	echo $USERS | xargs -n1 nova-manage user delete
+
+	# Delete dashboard users
+	for USER in $USERS; do
+		$VENV $MANAGE deleteuser --username=$USER --noinput
+	done
+fi
+
+echo "Deleting project..."
+nova-manage project delete $PROJECT
+nova-manage project scrub $PROJECT
+
+echo "Deleting project admin..."
+nova-manage user delete $ADMIN
+$VENV $MANAGE deleteuser --username=$ADMIN --noinput
+
+echo "Project $PROJECT deleted."
 
 exit 0

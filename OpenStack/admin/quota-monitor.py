@@ -202,7 +202,7 @@ class ZoneQueryManager:
 		for project in other_zones_resources.get_projects():
 			print project
 			# for each project in this zone subtract the projects total instances
-			# in other zones from the baseline_quotas 
+			# in other zones from the baseline_quotas
 			
 		
 	def __parse_query_result__(self, table):
