@@ -15,7 +15,7 @@ import string		# for atoi()
 import subprocess	# for __execute_call__()
 import logging		# for logging
 
-APP_DIR = os.getcwd() + '/'
+APP_DIR = '/home/cybera/dev/dair/OpenStack/admin/'
 GSTD_QUOTA_FILE = APP_DIR + "baseline_quotas.txt" # Gold standard quotas for baseline.
 RUNG_QUOTA_FILE = "/tmp/quotas.tmp" # Saved state on condition of quotas since last run
 NOVA_CONF = "/home/cybera/dev/nova.conf" # nova.conf -- change for production.
@@ -30,8 +30,11 @@ class QuotaLogger:
 		hdlr = logging.FileHandler(QuotaLogger.LOG_FILE)
 		formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
 		hdlr.setFormatter(formatter)
-		logger.addHandler(hdlr) 
-		logger.setLevel(logging.WARNING)
+		self.logger.addHandler(hdlr) 
+		self.logger.setLevel(logging.WARNING)
+		
+	def error(self, msg):
+		self.logger.error(msg)
 
 class ZoneInstance:
 	def __init__(self):
@@ -226,6 +229,19 @@ class ZoneQueryManager:
 		""" 
 		Takes a table output on stdout and returns it as a dictionary of 
 		results project=value. 
+		>>> zqm = ZoneQueryManager()
+		>>> table = "project_id	sum(size)\\n1003unbc	30\\nproject_a	99\\n\\n\\n"
+		>>> r = zqm.__parse_query_result__(table)
+		>>> print r['1003unbc']
+		30
+		>>> print r['project_a']
+		99
+		>>> table = "project_id	sum(size)\\n1003unbc	0\\nproject_a	1"
+		>>> r = zqm.__parse_query_result__(table)
+		>>> print r['1003unbc']
+		0
+		>>> print r['project_a']
+		1
 		"""
 		results = {}
 		if len(table) < 1: # empty set test -- naive test fix me
@@ -256,9 +272,12 @@ class Quota:
 	This class represents a project's quotas and instances of current resource
 	values within a zone. It also includes a flag to determine if the project 
 	stackholders have been alerted to overquotas.
+	>>> quota = Quota(1,2,3,4,5,6,7, "binky")
+	>>> print quota
+	'flags: 1, metadata_items: 2, gigabytes: 3, floating_ips: 4, instances: 5, volumes: 6, cores: 7'
 	"""
 	fl = 'flags'
-	M = ''
+	M = 'metadata_items'
 	G = 'gigabytes'
 	F = 'floating_ips'
 	I = 'instances'
@@ -281,10 +300,19 @@ class Quota:
 		"""
 		This method adds the values of quota to this quota object. It is used
 		for calculating all the instances of resources within other zones.
+		>>> p = Quota()
+		>>> p.set_values(["project=a","flags=1","metadata_items=1","gigabytes=1"," floating_ips=1","instances=1","volumes =  1","cores=1"])
+		'a'
+		>>> print p
+		'flags: 1, metadata_items: 1, gigabytes: 1, floating_ips: 1, instances: 1, volumes: 1, cores: 1'
+		>>> q = Quota()
+		>>> q.__add__(p)
+		>>> print q
+		'flags: 1, metadata_items: 1, gigabytes: 1, floating_ips: 1, instances: 1, volumes: 1, cores: 1'
 		"""
-		for quota_name in self.quota.keys():
+		for key in self.quota.keys():
 			try:
-				self.quota[quota_name] = self.quota[quota_name] + quota.get_quota(quota_name)
+				self.quota[key] = self.quota[key] + quota.get_quota(key)
 			except KeyError:
 				pass # mismatched quotas don't get added to this object that is
 					 # a quota must exist in both quota objects for it to be added
@@ -295,24 +323,35 @@ class Quota:
 		and returns a new quota.
 		param quota: the subtrahend quota
 		return: new difference quota **can be a negative value**
+		>>> p = Quota()
+		>>> p.set_values(["project=a","flags=1","metadata_items=1","gigabytes=1"," floating_ips=1","instances=1","volumes =  1","cores=1"])
+		'a'
+		>>> print p
+		'flags: 1, metadata_items: 1, gigabytes: 1, floating_ips: 1, instances: 1, volumes: 1, cores: 1'
+		>>> q = Quota()
+		>>> q.set_values(["project=b","flags=1","metadata_items=1","gigabytes=1"," floating_ips=1","instances=1","volumes =  1","cores=1"])
+		'b'
+		>>> print q
+		'flags: 1, metadata_items: 1, gigabytes: 1, floating_ips: 1, instances: 1, volumes: 1, cores: 1'
+		>>> r = q.__minus__(p)
+		>>> print q
+		'flags: 1, metadata_items: 1, gigabytes: 1, floating_ips: 1, instances: 1, volumes: 1, cores: 1'
+		>>> print r
+		'flags: 0, metadata_items: 0, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
+		>>> s = r.__minus__(p)
+		>>> print s
+		'flags: -1, metadata_items: -1, gigabytes: -1, floating_ips: -1, instances: -1, volumes: -1, cores: -1'
 		"""
 		return_quota = self.__clone__()
-		print "minus beg:", return_quota
-		print "minus quo:", quota
 		for key in self.quota.keys():
 			return_quota.set_quota(key, return_quota.get_quota(key) - quota.get_quota(key)) # this can be a neg value.
-			
-		print "minus end:", return_quota
 		return return_quota
 		
 	def __clone__(self):
-		""" 
-		Returns a clone of this quota using deep copy.
-		>>>a = Quota(0, 128, 100, 10, 10, 10, 20)
-		<BLANKLINE>
-		>>>b = a.__clone__()
-		<BLANKLINE>
-		>>>print b
+		"""Returns a clone of this quota using deep copy.
+		>>> a = Quota(0, 128, 100, 10, 10, 10, 20)
+		>>> b = a.__clone__()
+		>>> print b
 		'flags: 0, metadata_items: 128, gigabytes: 100, floating_ips: 10, instances: 10, volumes: 10, cores: 20'
 		"""
 		new_quota = Quota()
@@ -326,7 +365,14 @@ class Quota:
 		""" 
 		This method is used for reading in the original quota values for
 		projects. This is the values that the project admins signed up for.
-		parsing a string of 'name=value,' quotas. 
+		parsing a string of 'name=value,' quotas.
+		>>> quota = Quota()
+		>>> print quota
+		'flags: 0, metadata_items: 0, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
+		>>> quota.set_values(["project=1003unbc","flags=1","metadata_items=120","gigabytes=99"," floating_ips=30","   instances=4","	volumes =  2"," cores    =   20"])
+		'1003unbc'
+		>>> print quota
+		'flags: 1, metadata_items: 120, gigabytes: 99, floating_ips: 30, instances: 4, volumes: 2, cores: 20'
 		"""
 		project_name = None
 		for value in values:
@@ -369,9 +415,27 @@ class Quota:
 		self.quota[Quota.C]))
 		
 	def is_over_quota(self):
-		values = self.quotas.values()
-		for value in values:
-			if value < 0:
+		"""Returns True if the quota is over quota, that is the quota has a
+		negative value.
+		>>> p = Quota(1,2)
+		>>> q = p.__clone__()
+		>>> print q
+		'flags: 1, metadata_items: 2, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
+		>>> r = p.__minus__(q)
+		>>> print r.is_over_quota()
+		False
+		>>> print r
+		'flags: 0, metadata_items: 0, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
+		>>> print q.is_over_quota()
+		False
+		>>> s = r.__minus__(q)
+		>>> print s
+		'flags: -1, metadata_items: -2, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
+		>>> print s.is_over_quota()
+		True
+		"""
+		for key in self.quota.keys():
+			if self.quota[key] < 0:
 				return True
 		return False
 		
@@ -534,4 +598,6 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+	import doctest
+	doctest.testmod()
+	sys.exit(main())
