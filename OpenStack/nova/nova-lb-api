@@ -1,0 +1,51 @@
+#!/bin/bash
+
+#set -o xtrace
+
+#Enforcing root user to execute the script
+if [ `whoami` != root ]; then
+    echo "Please run this as the user, 'root'!";
+    exit 1
+fi
+
+usage()
+{
+    echo
+    echo "start/stop/restart nova-api on particular ports (for use with load balancing)"
+    echo
+    echo "    $0 start|stop|restart <ec2_listen_port> <osapi_listen_port>"
+    echo
+    exit 0
+}
+
+[ "$#" -eq 3 ] || usage
+echo $1 | grep -E -q 'start|stop|restart' || usage
+echo $2 | grep -E -q '^[0-9]+$' || usage
+echo $3 | grep -E -q '^[0-9]+$' || usage
+
+case $1 in
+    start )
+        echo "starting nova-api on $2"
+        nohup su -c "nova-api --flagfile=/etc/nova/nova.conf --logfile=/var/log/nova/nova-api-$2.log --ec2_listen_port=$2 --osapi_listen_port=$3" nova &
+        sleep 1
+        ps -f -C nova-api | grep nova-api-$2 | awk '{print $2}' > /var/run/nova/nova_api_$2.pid
+        rm nohup.out
+        ;;
+
+    stop )
+        echo "stopping nova-api on $2"
+        kill `cat /var/run/nova/nova_api_$2.pid`
+        rm -f /var/run/nova/nova_api_$2.pid
+        ;;
+
+    restart )
+        echo "re-starting nova-api on $2"
+        nova-lb-api stop $2 $3
+        nova-lb-api start $2 $3
+        ;;
+
+    *)
+        usage
+        ;;
+esac
+
