@@ -41,7 +41,20 @@ class ZoneInstance:
 		self.instances = {}
 		
 	def set_instance_count_per_project(self, which_quota, project_count):
-		""" Used to populate all the projects' specific quota."""
+		"""Used to populate all the projects' specific quota.
+		param which_quota: the name of the quota to set. Default values are
+		listed in Quota, like Quota.G=gigabytes.
+		param project_count: a dictionary of project name=current_usage.
+		>>> zi = ZoneInstance()
+		>>> pc = {}
+		>>> pc['a'] = 1
+		>>> zi.set_instance_count_per_project(Quota.M, pc)
+		>>> print zi.get_projects()
+		['a']
+		>>> a_quota = zi.get_resources('a')
+		>>> print a_quota
+		'flags: 0, metadata_items: 1, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
+		"""
 		for project in project_count:
 			project_instance = Quota()
 			try:
@@ -70,13 +83,30 @@ class ZoneInstance:
 			self.instances[project] = my_quota
 			
 	def get_projects(self):
+		"""Returns the running instances of a given project name or an empty quota
+		object if the project doesn't exist.
+		>>> zi = ZoneInstance()
+		>>> pc = {}
+		>>> pc['a'] = 1
+		>>> pc['b'] = 2
+		>>> zi.set_instance_count_per_project(Quota.M, pc)
+		>>> print zi.get_projects()
+		['a', 'b']
+		"""
 		return self.instances.keys()
 		
 	def get_resources(self, project):
-		"""
-		Returns the running instances of a given project name or an empty quota
-		object if the project doesn't exist. The resources that a project that
-		doesn't exist = 0.
+		"""Returns the running instances of a given project name or an empty quota
+		object if the project doesn't exist.
+		>>> zi = ZoneInstance()
+		>>> pc = {}
+		>>> pc['a'] = 1
+		>>> zi.set_instance_count_per_project(Quota.M, pc)
+		>>> print zi.get_projects()
+		['a']
+		>>> quota = zi.get_resources('a')
+		>>> print quota
+		'flags: 0, metadata_items: 1, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
 		"""
 		try:
 			return self.instances[project]
@@ -209,18 +239,27 @@ class ZoneQueryManager:
 		param other_zone_resources: a ZoneInstance with all the other zones in-use
 		resources aggregated.
 		return: ZoneInstance object with new quotas.
+		>>> zqm = ZoneQueryManager()
+		>>> table = "project_id	sum(size)\\nproject_b	2\\nproject_a	1\\n"
+		>>> resources = zqm.__parse_query_result__(table)
+		>>> z_instances = ZoneInstance()
+		>>> quotas = {}
+		>>> quota_a = Quota(0, 1, 0, 0, 0, 0, 0, 'project_a');
+		>>> quota_b = Quota(0, 1, 0, 0, 0, 0, 0, 'project_b');
+		>>> quotas['project_a'] = quota_a
+		>>> print quota_a
+		'flags: 0, metadata_items: 1, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
+		>>> quotas['project_b'] = quota_b
+		>>> z_instances.set_instance_count_per_project(Quota.M, resources)
 		"""
 		#new_quotas = zoneManager.compute_zone_quotas(quotas, other_zones_resources)
 		new_quota = Quota()
 		new_quotas = {}
 		for project in baseline_quotas.keys():
-			#print "for project: " + project + " resources are ",
 			# if the zone doesn't have a project by that name returns a zero-ed quota.
 			resources = other_zones_resources.get_resources(project)
-			#print resources,
 			# for each project in this zone subtract the projects total instances
 			new_quota = baseline_quotas[project].__minus__(resources)
-			#print "so new quota is " + str(new_quota)
 			# add the new quotas for this project to the return dictionary.
 			new_quotas[project] = new_quota
 		return new_quotas
@@ -242,6 +281,14 @@ class ZoneQueryManager:
 		0
 		>>> print r['project_a']
 		1
+		>>> table = "project_id	sum(size)"
+		>>> r = zqm.__parse_query_result__(table)
+		>>> print r
+		{}
+		>>> table = ""
+		>>> r = zqm.__parse_query_result__(table)
+		>>> print r
+		{}
 		"""
 		results = {}
 		if len(table) < 1: # empty set test -- naive test fix me
