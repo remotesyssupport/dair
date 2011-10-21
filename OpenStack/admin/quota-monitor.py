@@ -211,8 +211,18 @@ class ZoneQueryManager:
 	def connection_is_open(self):
 		return True
 		
-	def set_quotas(self, zone, quotas):
-		pass
+	def set_quota(self, zone, quota):
+		"""Sets a quota for a project in a secific zone."""
+		zone_url
+		try:
+			zone_url = self.regions[zone]
+		except KeyError:
+			log = QuotaLogger()
+			msg = "set quota failed because no zone: '" + zone + "'"
+			log.error(msg)
+			return
+		euca_cmd = 'ssh '
+		self.__execute_call__(euca_cmd)
 		
 	def get_zones(self):
 		""" Returns the names of the regions collected from nova.conf. """
@@ -268,7 +278,7 @@ class ZoneQueryManager:
 			# for each project in this zone subtract the projects total instances
 			new_quota = baseline_quotas[project].__minus__(resources)
 			if new_quota.is_over_quota():
-				# Don't set a quota to a negative value
+				# Don't set a quota to a negative value but signal to email.
 				new_quota.__normalize__()
 			# add the new quotas for this project to the return dictionary.
 			new_quotas[project] = new_quota
@@ -344,14 +354,15 @@ class Quota:
 	
 	def __init__(self, flags=0, meta=0, Gb=0, f_ips=0, insts=0, vols=0, cors=0, name=""):
 		self.quota = {}
+		self.exceeded = []
 		self.project_name = name
-		self.quota[Quota.fl] = flags # flags is currently if we have issued an email yet
-		self.quota[Quota.M] = meta
-		self.quota[Quota.G] = Gb
-		self.quota[Quota.F] = f_ips
-		self.quota[Quota.I] = insts
-		self.quota[Quota.V] = vols
-		self.quota[Quota.C] = cors
+		self.set_quota(Quota.fl, flags) # flags is currently if we have issued an email yet
+		self.set_quota(Quota.M, meta)
+		self.set_quota(Quota.G, Gb)
+		self.set_quota(Quota.F, f_ips)
+		self.set_quota(Quota.I, insts)
+		self.set_quota(Quota.V, vols)
+		self.set_quota(Quota.C, cors)
 		
 	# This function adds the values from another quota to this one.
 	def __add__(self, quota):
@@ -370,7 +381,7 @@ class Quota:
 		"""
 		for key in self.quota.keys():
 			try:
-				self.quota[key] = self.quota[key] + quota.get_quota(key)
+				self.set_quota(key, (self.get_quota(key) + quota.get_quota(key)))
 			except KeyError:
 				pass # mismatched quotas don't get added to this object that is
 					 # a quota must exist in both quota objects for it to be added
@@ -411,10 +422,15 @@ class Quota:
 		>>> b = a.__clone__()
 		>>> print b
 		'flags: 0, metadata_items: 128, gigabytes: 100, floating_ips: 10, instances: 10, volumes: 10, cores: 20'
+		>>> a = Quota(0, 1, 1, 1, 1, 1, 1)
+		>>> print a
+		'flags: 0, metadata_items: 1, gigabytes: 1, floating_ips: 1, instances: 1, volumes: 1, cores: 1'
+		>>> print b
+		'flags: 0, metadata_items: 128, gigabytes: 100, floating_ips: 10, instances: 10, volumes: 10, cores: 20'
 		"""
 		new_quota = Quota()
 		for key in self.quota.keys():
-			new_quota.set_quota(key, self.quota[key])
+			new_quota.set_quota(key, self.get_quota(key))
 		return new_quota
 	
 	# reads lines from a file and if the values are '=' separated it will assign the named quota the '=' value.
@@ -440,7 +456,7 @@ class Quota:
 				project_name = vs
 			else:
 				vs = string.atoi(vs)
-				self.quota[name] = vs # possible to set a quota that doesn't exist by misspelling its name
+				self.set_quota(name, vs) # possible to set a quota that doesn't exist by misspelling its name
 			#print "name = " + name + " value = " + str(vs)
 		if project_name == None or project_name == "":
 			# project name not specified in file throw exception
@@ -452,7 +468,18 @@ class Quota:
 			return project_name
 			
 	def set_quota(self, name, value):
-		""" Stores a quota value. """
+		""" Stores a quota value. 
+		>>> q = Quota(0, 1)
+		>>> print q
+		'flags: 0, metadata_items: 1, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
+		>>> q.get_exceeded()
+		[]
+		>>> q.set_quota(Quota.M, -1)
+		>>> q.get_exceeded()
+		['metadata_items']
+		"""
+		if value < 0 and self.exceeded.__contains__(name) == False:
+			self.exceeded.append(name)
 		self.quota[name] = value
 		
 	def get_quota(self, name):
@@ -480,8 +507,8 @@ class Quota:
 		"""
 		for key in self.quota.keys():
 			if self.quota[key] < 0:
-				self.quota[key] = 0
-				self.quota[Quota.fl] |= Quota.EMAIL
+				self.set_quota(key, 0)
+				self.set_quota(Quota.fl, (self.get_quota(Quota.fl) | Quota.EMAIL))
 		
 	def __str__(self):
 		return repr("flags: %d, metadata_items: %d, gigabytes: %d, floating_ips: %d, instances: %d, volumes: %d, cores: %d" % \
@@ -496,10 +523,10 @@ class Quota:
 	def is_over_quota(self):
 		"""Returns True if the quota is over quota, that is the quota has a
 		negative value.
-		>>> p = Quota(1,2)
+		>>> p = Quota(0,2)
 		>>> q = p.__clone__()
 		>>> print q
-		'flags: 1, metadata_items: 2, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
+		'flags: 0, metadata_items: 2, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
 		>>> r = p.__minus__(q)
 		>>> print r.is_over_quota()
 		False
@@ -509,22 +536,25 @@ class Quota:
 		False
 		>>> s = r.__minus__(q)
 		>>> print s
-		'flags: -1, metadata_items: -2, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
+		'flags: 0, metadata_items: -2, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
+		>>> print s.is_over_quota()
+		True
+		>>> s.__normalize__()
 		>>> print s.is_over_quota()
 		True
 		"""
 		for key in self.quota.keys():
-			if self.quota[key] < 0:
+			if self.quota[key] < 0 or self.quota[Quota.fl] & Quota.EMAIL == 1: # accounts for normalized quota
 				return True
 		return False
 		
 	def get_exceeded(self):
-		"""Returns a list of quotas that have been exceeded. """
-		return_str = ""
-		for q in self.quota.keys():
-			if self.quota[key] < 0:
-				return_str = return_str + "%s " % (key)
-		return return_str
+		"""Returns a list of quotas that have been exceeded. 
+		>>> q = Quota(0, -1, 0)
+		>>> print q.get_exceeded()
+		['metadata_items']
+		"""
+		return self.exceeded
 		
 	def get_project_name(self):
 		"""Returns the name of the project that this quota belongs to."""
@@ -613,12 +643,15 @@ def balance_quotas():
 		other_zones_resources = zoneManager.get_other_zones_current_resources(zone)
 		print "I am zone " + zone
 		new_quotas = zoneManager.compute_zone_quotas(quotas, other_zones_resources)
-		#zoneManager.set_quotas(zone, new_quotas)
-		#if new_quotas.is_over_quota():
-		#	log = QuotaLogger()
-		#	msg = "project %s is over quota: %s in zone %s." % (new_quota.get_project_name(), new_quota.get_exceeded(), zone)
-		#	log.warn(msg)
-		#	email_stakeholders(msg)
+		for project in new_quotas.keys():
+			zoneManager.set_quota(zone, new_quotas[project])
+			if new_quotas[project].is_over_quota():
+				log = QuotaLogger()
+				exceeded_quota = new_quotas[project].get_exceeded()
+		#		msg = "project %s is over quota: %s in zone %s." % (project, exceeded_quota, zone)
+		#		log.warn(msg)
+		#		email_stakeholders(project, exceeded_quota, zone)
+			
 	return 0
 	
 
