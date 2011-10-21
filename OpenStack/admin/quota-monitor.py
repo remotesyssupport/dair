@@ -107,6 +107,9 @@ class ZoneInstance:
 		>>> quota = zi.get_resources('a')
 		>>> print quota
 		'flags: 0, metadata_items: 1, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
+		>>> quota = zi.get_resources('no_project')
+		>>> print quota
+		'flags: 0, metadata_items: 0, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
 		"""
 		try:
 			return self.instances[project]
@@ -229,7 +232,7 @@ class ZoneQueryManager:
 				other_zones_resources.__sum__(self.instances[z]) # add the project quotas from the other snapshot(s)
 		return other_zones_resources
 		
-	def compute_zone_quotas(self, zone, baseline_quotas, other_zones_resources):
+	def compute_zone_quotas(self, baseline_quotas, other_zones_resources):
 		"""
 		Given a zone and baseline quotas for a project returns baseline_quotas 
 		ZoneInstance object with modified quota values.
@@ -240,19 +243,23 @@ class ZoneQueryManager:
 		resources aggregated.
 		return: ZoneInstance object with new quotas.
 		>>> zqm = ZoneQueryManager()
-		>>> table = "project_id	sum(size)\\nproject_b	2\\nproject_a	1\\n"
+		>>> table = "project_id	sum(size)\\nproject_b	2\\nproject_a	9\\n"
 		>>> resources = zqm.__parse_query_result__(table)
-		>>> z_instances = ZoneInstance()
+		>>> other_zi = ZoneInstance()
+		>>> other_zi.set_instance_count_per_project(Quota.M, resources)
 		>>> quotas = {}
-		>>> quota_a = Quota(0, 1, 0, 0, 0, 0, 0, 'project_a');
+		>>> quota_a = Quota(0, 10, 0, 0, 0, 0, 0, 'project_a');
 		>>> quota_b = Quota(0, 1, 0, 0, 0, 0, 0, 'project_b');
 		>>> quotas['project_a'] = quota_a
 		>>> print quota_a
-		'flags: 0, metadata_items: 1, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
+		'flags: 0, metadata_items: 10, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
 		>>> quotas['project_b'] = quota_b
-		>>> z_instances.set_instance_count_per_project(Quota.M, resources)
+		>>> new_quotas = zqm.compute_zone_quotas(quotas, other_zi)
+		>>> print new_quotas['project_a']
+		'flags: 0, metadata_items: 1, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
+		>>> print new_quotas['project_b'] # project_b is over quota but don't set to a negative value.
+		'flags: 1, metadata_items: 0, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
 		"""
-		#new_quotas = zoneManager.compute_zone_quotas(quotas, other_zones_resources)
 		new_quota = Quota()
 		new_quotas = {}
 		for project in baseline_quotas.keys():
@@ -260,6 +267,9 @@ class ZoneQueryManager:
 			resources = other_zones_resources.get_resources(project)
 			# for each project in this zone subtract the projects total instances
 			new_quota = baseline_quotas[project].__minus__(resources)
+			if new_quota.is_over_quota():
+				# Don't set a quota to a negative value
+				new_quota.__normalize__()
 			# add the new quotas for this project to the return dictionary.
 			new_quotas[project] = new_quota
 		return new_quotas
@@ -330,6 +340,7 @@ class Quota:
 	I = 'instances'
 	V = 'volumes'
 	C = 'cores'
+	EMAIL = 1
 	
 	def __init__(self, flags=0, meta=0, Gb=0, f_ips=0, insts=0, vols=0, cors=0, name=""):
 		self.quota = {}
@@ -450,6 +461,27 @@ class Quota:
 			return self.quota[name]
 		except KeyError:
 			return 0
+			
+	# set negative quotas to zero and set the email flag to one.
+	def __normalize__(self):
+		"""Set any negative quotas to zero and set the email flag on the quota to 1.
+		>>> quota_good = Quota(0,1)
+		>>> print quota_good
+		'flags: 0, metadata_items: 1, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
+		>>> quota_good.__normalize__()
+		>>> print quota_good
+		'flags: 0, metadata_items: 1, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
+		>>> quota_bad = Quota(0,-1)
+		>>> print quota_bad
+		'flags: 0, metadata_items: -1, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
+		>>> quota_bad.__normalize__()
+		>>> print quota_bad
+		'flags: 1, metadata_items: 0, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
+		"""
+		for key in self.quota.keys():
+			if self.quota[key] < 0:
+				self.quota[key] = 0
+				self.quota[Quota.fl] |= Quota.EMAIL
 		
 	def __str__(self):
 		return repr("flags: %d, metadata_items: %d, gigabytes: %d, floating_ips: %d, instances: %d, volumes: %d, cores: %d" % \
@@ -580,7 +612,7 @@ def balance_quotas():
 	for zone in zoneManager.get_zones():
 		other_zones_resources = zoneManager.get_other_zones_current_resources(zone)
 		print "I am zone " + zone
-		new_quotas = zoneManager.compute_zone_quotas(zone, quotas, other_zones_resources)
+		new_quotas = zoneManager.compute_zone_quotas(quotas, other_zones_resources)
 		#zoneManager.set_quotas(zone, new_quotas)
 		#if new_quotas.is_over_quota():
 		#	log = QuotaLogger()
