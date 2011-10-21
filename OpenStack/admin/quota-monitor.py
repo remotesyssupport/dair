@@ -213,16 +213,35 @@ class ZoneQueryManager:
 		
 	def set_quota(self, zone, quota):
 		"""Sets a quota for a project in a secific zone."""
-		zone_url
+		address = ""
 		try:
-			zone_url = self.regions[zone]
+			address = self.regions[zone]
 		except KeyError:
 			log = QuotaLogger()
-			msg = "set quota failed because no zone: '" + zone + "'"
+			msg = "ZoneQueryManager.set_quota failed because no zone: '" + zone + "'"
 			log.error(msg)
 			return
-		euca_cmd = 'ssh '
-		self.__execute_call__(euca_cmd)
+		# ssh -o StrictHostKeyChecking=no ADDRESS "nova-manage project quota PROJECT gigabytes QUOTA_GIGABYTES"
+		# fl = 'flags'
+		# G = 'gigabytes'
+		# F = 'floating_ips'
+		# I = 'instances'
+		# V = 'volumes'
+		# C = 'cores'
+		# M = 'metadata_items'
+		euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + Quota.C + " " + str(quota.get_quota(Quota.C)) + "\""
+		print euca_cmd #self.__execute_call__(euca_cmd)
+		euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + Quota.F + " " + str(quota.get_quota(Quota.F)) + "\""
+		print euca_cmd #self.__execute_call__(euca_cmd)
+		euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + Quota.G + " " + str(quota.get_quota(Quota.G)) + "\""
+		print euca_cmd #self.__execute_call__(euca_cmd)
+		euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + Quota.I + " " + str(quota.get_quota(Quota.I)) + "\""
+		print euca_cmd #self.__execute_call__(euca_cmd)
+		euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + Quota.M + " " + str(quota.get_quota(Quota.M)) + "\""
+		print euca_cmd #self.__execute_call__(euca_cmd)
+		euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + Quota.V + " " + str(quota.get_quota(Quota.V)) + "\""
+		print euca_cmd #self.__execute_call__(euca_cmd)
+		
 		
 	def get_zones(self):
 		""" Returns the names of the regions collected from nova.conf. """
@@ -648,12 +667,14 @@ def balance_quotas():
 			if new_quotas[project].is_over_quota():
 				log = QuotaLogger()
 				exceeded_quota = new_quotas[project].get_exceeded()
-		#		msg = "project %s is over quota: %s in zone %s." % (project, exceeded_quota, zone)
-		#		log.warn(msg)
+				msg = "project %s is over quota: %s in zone %s." % (project, exceeded_quota, zone)
+				log.error(msg)
 		#		email_stakeholders(project, exceeded_quota, zone)
-			
 	return 0
 	
+def email_stakeholders(project, exceeded_quota_str, zone):
+	"""Emails the stakeholders that a problem occured."""
+	pass
 
 def usage():
 	return """
