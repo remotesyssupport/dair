@@ -14,15 +14,18 @@ import getopt       # Command line processing.
 import string		# for atoi()
 import subprocess	# for __execute_call__()
 import logging		# for logging
+import os.path		# for file testing.
 
 APP_DIR = '/home/cybera/dev/dair/OpenStack/admin/'
 GSTD_QUOTA_FILE = APP_DIR + "baseline_quotas.txt" # Gold standard quotas for baseline.
+STAKEHOLDER_FILE = APP_DIR + "project_stakeholders.txt" # Gold standard quotas for baseline.
 RUNG_QUOTA_FILE = "/tmp/quotas.tmp" # Saved state on condition of quotas since last run
 NOVA_CONF = "/home/cybera/dev/nova.conf" # nova.conf -- change for production.
 
 
 class QuotaLogger:
-	""" Logs events of interest """
+	"""Logs events of interest.
+	>>> """
 	#LOG_FILE = "/var/log/dair/quota-monitor.log" # log file
 	LOG_FILE = "quota-monitor.log" # log file
 	def __init__(self):
@@ -343,6 +346,30 @@ class ZoneQueryManager:
 				results[data[0]] = string.atoi(data[1]) # project_id = [0], value = [1]
 		return results
 		
+	def email(self, zone, quota):
+		#"""Emails users in the address list the message in msg. The list of recipiants 
+		#is mailed if the quota object has the email flag set to 1 then it resets it.
+		#>>> zqm = ZoneQueryManager()
+		#>>> quota = Quota(1, -1) # over quota and send email flag up.
+		#>>> quota.is_over_quota()
+		#True
+		#>>> zqm.email(['andrew.nisbet@cybera.ca'], quota)
+		#True
+		#>>> quota = Quota(0, -1) # over quota but email sent already.
+		#>>> zqm.email(['andrew.nisbet@cybera.ca'], quota)
+		#False
+		#>>> quota = Quota(0, 22) # over quota but email sent already.
+		#>>> zqm.email(['andrew.nisbet@cybera.ca'], quota)
+		#False
+		#"""
+		# in Unix: echo "Project x is overquota in zone y" | mail -s "Message from ROOT at Nova-ab" andrew.nisbet@cybera.ca
+		subject = "Quota-Monitor: " + quota.get_project_name() + " over quota"
+		body = "Project " + quota.get_project_name() + " is overquota in zone " + zone 
+		cmd = 'echo \"' + body + '\" | mail -s \"' + body + '\" ' + quota.get_contact()
+		print cmd
+		#self.__execute_call__(cmd)
+		
+		
 # metadata_items: 128
 # gigabytes: 100
 # floating_ips: 5
@@ -579,6 +606,10 @@ class Quota:
 		"""Returns the name of the project that this quota belongs to."""
 		return self.project_name
 		
+	def get_contact(self):
+		############## continue here. ##############
+		return "andrew.nisbet@cybera.ca"
+		
 		
 # The baseline quota file is made up of lines of quotas where the minimum entry
 # is the project name. There is no maximum entry so future quotas can be added
@@ -650,12 +681,6 @@ def balance_quotas():
 	Iother: the number of instances of a resource being consumed in all other zones.
 	"""
 	zoneManager = ZoneQueryManager() # this will now contain the regions and sql password
-	if zoneManager.connection_is_open() == False: # TODO finish this method
-		log = QuotaLogger()
-		msg = "no connection to other zones"
-		log.error(msg)
-		return -2
-		
 	quotas = read_baseline_quota_file()	
 	zoneManager.get_zone_resource_snapshots()
 	for zone in zoneManager.get_zones():
@@ -665,16 +690,8 @@ def balance_quotas():
 		for project in new_quotas.keys():
 			zoneManager.set_quota(zone, new_quotas[project])
 			if new_quotas[project].is_over_quota():
-				log = QuotaLogger()
-				exceeded_quota = new_quotas[project].get_exceeded()
-				msg = "project %s is over quota: %s in zone %s." % (project, exceeded_quota, zone)
-				log.error(msg)
-		#		email_stakeholders(project, exceeded_quota, zone)
+				zoneManager.email(zone, new_quotas[project])
 	return 0
-	
-def email_stakeholders(project, exceeded_quota_str, zone):
-	"""Emails the stakeholders that a problem occured."""
-	pass
 
 def usage():
 	return """
