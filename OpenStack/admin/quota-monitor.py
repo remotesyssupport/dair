@@ -185,8 +185,6 @@ class ZoneQueryManager:
 		sql_cmd_prefix = " 'mysql -uroot -p" + self.password + " nova -e "
 		sql_cmd_suffix = "'"
 		# for each quota run a query for the values currently in this zone.
-		#print ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_GIGABYTES + sql_cmd_suffix
-		#cmd_result = __execute_call__(ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_GIGABYTES + sql_cmd_suffix)
 		# test data
 		cmd_result = """"""
 		if zone == 'quebec':
@@ -200,6 +198,9 @@ class ZoneQueryManager:
 			project_d	199
 			1003unbc	10
 			"""
+		### PRODUCTION CODE ###
+		#print ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_GIGABYTES + sql_cmd_suffix
+		#cmd_result = __execute_call__(ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_GIGABYTES + sql_cmd_suffix)
 		result_dict = self.__parse_query_result__(cmd_result)
 		zone_project_instances.set_instance_count_per_project(Quota.G, result_dict)
 		#print ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_FLOAT_IPS + sql_cmd_suffix
@@ -346,27 +347,39 @@ class ZoneQueryManager:
 		return results
 		
 	def email(self, zone, quota):
-		#"""Emails users in the address list the message in msg. The list of recipiants 
-		#is mailed if the quota object has the email flag set to 1 then it resets it.
-		#>>> zqm = ZoneQueryManager()
-		#>>> quota = Quota('project_a andrew.nisbet@cybera.ca', 1, -1) # over quota and send email flag up.
-		#>>> quota.is_over_quota()
-		#True
-		#>>> zqm.email('alberta', quota)
-		#True
-		#>>> quota = Quota('project_b andrew.nisbet@cybera.ca', 0, -1) # over quota but email sent already.
-		#>>> zqm.email('alberta', quota)
-		#False
-		#>>> quota = Quota('project_b andrew.nisbet@cybera.ca', 0, 22) # over quota but email sent already.
-		#>>> zqm.email('alberta', quota)
-		#False
-		#"""
+		"""Emails users in the address list the message in msg. The list of recipiants 
+		is mailed if the quota object has the email flag set to 1 then it resets it.
+		>>> zqm = ZoneQueryManager()
+		>>> quota = Quota('bloaded andrew.nisbet@cybera.ca', 1, -1) # over quota and sent email flag up.
+		>>> quota.is_over_quota()
+		True
+		>>> zqm.email('alberta', quota)
+		False
+		>>> quota = Quota('under_quota andrew.nisbet@cybera.ca', 0, -1) # over quota.
+		>>> zqm.email('alberta', quota)
+		True
+		>>> zqm.email('alberta', quota) # over quota but email sent already.
+		False
+		>>> quota = Quota('project_b', -1, 22) # over quota but no one to send to.
+		>>> zqm.email('alberta', quota)
+		False
+		"""
 		# in Unix: echo "Project x is overquota in zone y" | mail -s "Message from ROOT at Nova-ab" andrew.nisbet@cybera.ca
 		subject = "Quota-Monitor: " + quota.get_project_name() + " over quota"
 		body = "Project " + quota.get_project_name() + " is overquota in zone " + zone 
-		cmd = 'echo \"' + body + '\" | mail -s \"' + body + '\" ' + quota.get_contact()
-		print cmd
-		#self.__execute_call__(cmd)
+		project_stakeholders = quota.get_contact()
+		if len(project_stakeholders) == 0:
+			return False
+		if quota.get_quota(Quota.fl) & Quota.EMAILED == 0: # The contacts haven't been emailed yet.
+			for contact in project_stakeholders:
+				cmd = 'echo \"' + body + '\" | mail -s \"' + body + '\" ' + contact
+			quota.set_quota(Quota.fl, Quota.EMAILED)
+			#print cmd
+			### PRODUCTION CODE ###
+			#self.__execute_call__(cmd)
+			return True
+		else:
+			return False
 		
 		
 # metadata_items: 128
@@ -396,7 +409,7 @@ class Quota:
 	I = 'instances'
 	V = 'volumes'
 	C = 'cores'
-	EMAIL = 1
+	EMAILED = 1
 	
 	def __init__(self, name, flags=0, meta=0, Gb=0, f_ips=0, insts=0, vols=0, cors=0):
 		self.quota = {}
@@ -554,7 +567,7 @@ class Quota:
 		for key in self.quota.keys():
 			if self.quota[key] < 0:
 				self.set_quota(key, 0)
-				self.set_quota(Quota.fl, (self.get_quota(Quota.fl) | Quota.EMAIL))
+				self.set_quota(Quota.fl, (self.get_quota(Quota.fl) | Quota.EMAILED))
 		
 	def __str__(self):
 		return repr("flags: %d, metadata_items: %d, gigabytes: %d, floating_ips: %d, instances: %d, volumes: %d, cores: %d" % \
@@ -590,7 +603,7 @@ class Quota:
 		True
 		"""
 		for key in self.quota.keys():
-			if self.quota[key] < 0 or self.quota[Quota.fl] & Quota.EMAIL == 1: # accounts for normalized quota
+			if self.quota[key] < 0 or self.quota[Quota.fl] & Quota.EMAILED == 1: # accounts for normalized quota
 				return True
 		return False
 		
@@ -608,11 +621,20 @@ class Quota:
 		>>> print q.get_project_name()
 		binky
 		"""
-		return self.project
+		return self.project.split()[0]
 		
 	def get_contact(self):
-		############## continue here. ##############
-		return "andrew.nisbet@cybera.ca"
+		"""Returns a list of contacts that is stored in the project filed of the config file.
+		>>> q = Quota('proj_a andrew.nisbet@cybera.ca foo@bar.ca', 0, 1)
+		>>> print q.get_contact()
+		['andrew.nisbet@cybera.ca', 'foo@bar.ca']
+		"""
+		contacts = self.project.split()
+		return_list = []
+		for contact in contacts:
+			if contact.find('@') > 0:
+				return_list.append(contact.strip())
+		return return_list
 		
 		
 # The baseline quota file is made up of lines of quotas where the minimum entry
