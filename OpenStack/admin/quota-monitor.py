@@ -715,6 +715,28 @@ def read_emailed_list_file(file_name=DELINQUENT_FILE):
 				
 	return delinquent_projects
 	
+def write_emailed_list(emailed_dict, file_name=DELINQUENT_FILE):
+	"""Writes the list of projects that have received emails already.
+	>>> write_emailed_list({'a': 1, 'b': 1, 'c': 1, 'd': 1}, 'test.tmp')
+	>>> read_emailed_list_file('test.tmp') # this can fail because it is a hash and there is no guarantee of order.
+	{'a': 1, 'c': 1, 'b': 1, 'd': 1}
+	>>> write_emailed_list({'project_a': 1}, 'test.tmp')
+	>>> read_emailed_list_file('test.tmp') # this can fail because it is a hash and there is no guarantee of order.
+	{'project_a': 1}
+	>>> write_emailed_list({}, 'test.tmp')
+	>>> read_emailed_list_file('test.tmp') # this can fail because it is a hash and there is no guarantee of order.
+	{}
+	>>> os.remove('test.tmp')
+	"""
+	try:
+		f = open(file_name, 'w')
+		for key in emailed_dict:
+			f.write(key + " ")
+		f.close()
+	except:
+		pass
+	finally:
+		f.close()
 		
 # There has to be a way to reset the quotas to the baseline for all groups 
 # in the case that there is a problem and the quotas get out of synch.
@@ -757,7 +779,7 @@ def balance_quotas():
 			if new_quotas[project].is_over_quota():
 				zoneManager.email(zone, new_quotas[project])
 		#update_emailed_list(emailed_overquota_projects, new_quotas)
-	#write_emailed_list(emailed_overquota_projects)
+	write_emailed_list(emailed_overquota_projects)
 	return 0
 
 def usage():
