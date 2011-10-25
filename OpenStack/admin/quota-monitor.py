@@ -18,8 +18,8 @@ import os.path		# for file testing.
 
 APP_DIR = '/home/cybera/dev/dair/OpenStack/admin/'
 GSTD_QUOTA_FILE = APP_DIR + "baseline_quotas.txt" # Gold standard quotas for baseline.
-STAKEHOLDER_FILE = APP_DIR + "project_stakeholders.txt" # Gold standard quotas for baseline.
-RUNG_QUOTA_FILE = "/tmp/quotas.tmp" # Saved state on condition of quotas since last run
+DELINQUENT_FILE = APP_DIR + "Quota-monitor_scratch.tmp" # list of delinquent projects that HAVE been emailed.
+### PRODUCTION CODE ###
 NOVA_CONF = "/home/cybera/dev/nova.conf" # nova.conf -- change for production.
 
 
@@ -679,6 +679,42 @@ def read_baseline_quota_file():
 			quotas[name] = project_quota
 		#print quotas
 	return quotas
+	
+def read_emailed_list_file(file_name=DELINQUENT_FILE):
+	"""Reads the list of projects that have received emails already. If it can't find the file
+	it returns an empty list and everyone overquota will get another email.
+	>>> f = open('test.tmp', 'w')
+	>>> f.write("a b c\\n# shouldn't find this\\nd")
+	>>> f.close()
+	>>> read_emailed_list_file('test.tmp') # this can fail because it is a hash and there is no guarantee of order.
+	{'a': 1, 'c': 1, 'b': 1, 'd': 1}
+	>>> os.remove('test.tmp')
+	>>> f = open('test.tmp', 'w')
+	>>> f.write("project_a")
+	>>> f.close()
+	>>> read_emailed_list_file('test.tmp')
+	{'project_a': 1}
+	>>> os.remove('test.tmp')
+	>>> f = open('test.tmp', 'w')
+	>>> f.write("")
+	>>> f.close()
+	>>> read_emailed_list_file('test.tmp')
+	{}
+	>>> os.remove('test.tmp')
+	"""
+	delinquent_projects = {}
+	try:
+		f = open(file_name)
+	except:
+		return {} # no file or could not be opened.
+	
+	for line in f.readlines():
+		if line.strip() != "" and line[0] != "#": # empty lines # are commented lines.
+			for each_name in line.strip().split():
+				delinquent_projects[each_name] = 1
+				
+	return delinquent_projects
+	
 		
 # There has to be a way to reset the quotas to the baseline for all groups 
 # in the case that there is a problem and the quotas get out of synch.
@@ -693,7 +729,7 @@ def reset_quotas():
 	quotas = read_baseline_quota_file()
 	zoneManager = ZoneQueryManager()
 	for zone in zoneManager.get_zones():
-		zoneManager.set_quotas(zone, quotas) # everyone gets the same.
+		zoneManager.set_quotas(zone, quotas) # all zones get the same project quota.
 	return 0
 	
 def balance_quotas():
@@ -707,16 +743,21 @@ def balance_quotas():
 	Iother: the number of instances of a resource being consumed in all other zones.
 	"""
 	zoneManager = ZoneQueryManager() # this will now contain the regions and sql password
-	quotas = read_baseline_quota_file()	
+	quotas = read_baseline_quota_file()
+	# set the quotas email flag. This is to stop over-quota projects from getting spam.
+	# deleting this file is not dangerous and will resend email to user's that are over-quota.
+	emailed_overquota_projects = read_emailed_list_file()
 	zoneManager.get_zone_resource_snapshots()
 	for zone in zoneManager.get_zones():
 		other_zones_resources = zoneManager.get_other_zones_current_resources(zone)
-		print "I am zone " + zone
+		#print "I am zone " + zone
 		new_quotas = zoneManager.compute_zone_quotas(quotas, other_zones_resources)
 		for project in new_quotas.keys():
 			zoneManager.set_quota(zone, new_quotas[project])
 			if new_quotas[project].is_over_quota():
 				zoneManager.email(zone, new_quotas[project])
+		#update_emailed_list(emailed_overquota_projects, new_quotas)
+	#write_emailed_list(emailed_overquota_projects)
 	return 0
 
 def usage():
