@@ -59,7 +59,7 @@ class ZoneInstance:
 		'flags: 0, metadata_items: 1, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
 		"""
 		for project in project_count:
-			project_instance = Quota()
+			project_instance = Quota(project)
 			try:
 				project_instance = self.instances[project]
 			except KeyError: # no instances for this project logged yet.
@@ -81,7 +81,7 @@ class ZoneInstance:
 			try:
 				my_quota = self.instances[project]
 			except KeyError: # this project isn't using resources in other_zone.
-				my_quota = Quota()
+				my_quota = Quota(project)
 			my_quota.__add__(other_zone.get_resources(project))
 			self.instances[project] = my_quota
 			
@@ -117,7 +117,7 @@ class ZoneInstance:
 		try:
 			return self.instances[project]
 		except KeyError:
-			return Quota()
+			return Quota(project)
 		
 # sql queries:
 # basic passing:
@@ -280,8 +280,8 @@ class ZoneQueryManager:
 		>>> other_zi = ZoneInstance()
 		>>> other_zi.set_instance_count_per_project(Quota.M, resources)
 		>>> quotas = {}
-		>>> quota_a = Quota(0, 10, 0, 0, 0, 0, 0, 'project_a');
-		>>> quota_b = Quota(0, 1, 0, 0, 0, 0, 0, 'project_b');
+		>>> quota_a = Quota('project_a', 0, 10, 0, 0, 0, 0, 0);
+		>>> quota_b = Quota( 'project_b', 0, 1, 0, 0, 0, 0, 0);
 		>>> quotas['project_a'] = quota_a
 		>>> print quota_a
 		'flags: 0, metadata_items: 10, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
@@ -292,7 +292,6 @@ class ZoneQueryManager:
 		>>> print new_quotas['project_b'] # project_b is over quota but don't set to a negative value.
 		'flags: 1, metadata_items: 0, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
 		"""
-		new_quota = Quota()
 		new_quotas = {}
 		for project in baseline_quotas.keys():
 			# if the zone doesn't have a project by that name returns a zero-ed quota.
@@ -350,16 +349,16 @@ class ZoneQueryManager:
 		#"""Emails users in the address list the message in msg. The list of recipiants 
 		#is mailed if the quota object has the email flag set to 1 then it resets it.
 		#>>> zqm = ZoneQueryManager()
-		#>>> quota = Quota(1, -1) # over quota and send email flag up.
+		#>>> quota = Quota('project_a andrew.nisbet@cybera.ca', 1, -1) # over quota and send email flag up.
 		#>>> quota.is_over_quota()
 		#True
-		#>>> zqm.email(['andrew.nisbet@cybera.ca'], quota)
+		#>>> zqm.email('alberta', quota)
 		#True
-		#>>> quota = Quota(0, -1) # over quota but email sent already.
-		#>>> zqm.email(['andrew.nisbet@cybera.ca'], quota)
+		#>>> quota = Quota('project_b andrew.nisbet@cybera.ca', 0, -1) # over quota but email sent already.
+		#>>> zqm.email('alberta', quota)
 		#False
-		#>>> quota = Quota(0, 22) # over quota but email sent already.
-		#>>> zqm.email(['andrew.nisbet@cybera.ca'], quota)
+		#>>> quota = Quota('project_b andrew.nisbet@cybera.ca', 0, 22) # over quota but email sent already.
+		#>>> zqm.email('alberta', quota)
 		#False
 		#"""
 		# in Unix: echo "Project x is overquota in zone y" | mail -s "Message from ROOT at Nova-ab" andrew.nisbet@cybera.ca
@@ -385,10 +384,11 @@ class Quota:
 	This class represents a project's quotas and instances of current resource
 	values within a zone. It also includes a flag to determine if the project 
 	stackholders have been alerted to overquotas.
-	>>> quota = Quota(1,2,3,4,5,6,7, "binky")
+	>>> quota = Quota("binky", 1,2,3,4,5,6,7)
 	>>> print quota
 	'flags: 1, metadata_items: 2, gigabytes: 3, floating_ips: 4, instances: 5, volumes: 6, cores: 7'
 	"""
+	PROJECT = 'project'
 	fl = 'flags'
 	M = 'metadata_items'
 	G = 'gigabytes'
@@ -398,10 +398,10 @@ class Quota:
 	C = 'cores'
 	EMAIL = 1
 	
-	def __init__(self, flags=0, meta=0, Gb=0, f_ips=0, insts=0, vols=0, cors=0, name=""):
+	def __init__(self, name, flags=0, meta=0, Gb=0, f_ips=0, insts=0, vols=0, cors=0):
 		self.quota = {}
 		self.exceeded = []
-		self.project_name = name
+		self.project = name
 		self.set_quota(Quota.fl, flags) # flags is currently if we have issued an email yet
 		self.set_quota(Quota.M, meta)
 		self.set_quota(Quota.G, Gb)
@@ -415,12 +415,12 @@ class Quota:
 		"""
 		This method adds the values of quota to this quota object. It is used
 		for calculating all the instances of resources within other zones.
-		>>> p = Quota()
+		>>> p = Quota('not_p')
 		>>> p.set_values(["project=a","flags=1","metadata_items=1","gigabytes=1"," floating_ips=1","instances=1","volumes =  1","cores=1"])
 		'a'
 		>>> print p
 		'flags: 1, metadata_items: 1, gigabytes: 1, floating_ips: 1, instances: 1, volumes: 1, cores: 1'
-		>>> q = Quota()
+		>>> q = Quota('q')
 		>>> q.__add__(p)
 		>>> print q
 		'flags: 1, metadata_items: 1, gigabytes: 1, floating_ips: 1, instances: 1, volumes: 1, cores: 1'
@@ -438,12 +438,12 @@ class Quota:
 		and returns a new quota.
 		param quota: the subtrahend quota
 		return: new difference quota **can be a negative value**
-		>>> p = Quota()
+		>>> p = Quota('not_a')
 		>>> p.set_values(["project=a","flags=1","metadata_items=1","gigabytes=1"," floating_ips=1","instances=1","volumes =  1","cores=1"])
 		'a'
 		>>> print p
 		'flags: 1, metadata_items: 1, gigabytes: 1, floating_ips: 1, instances: 1, volumes: 1, cores: 1'
-		>>> q = Quota()
+		>>> q = Quota('not_b')
 		>>> q.set_values(["project=b","flags=1","metadata_items=1","gigabytes=1"," floating_ips=1","instances=1","volumes =  1","cores=1"])
 		'b'
 		>>> print q
@@ -464,17 +464,17 @@ class Quota:
 		
 	def __clone__(self):
 		"""Returns a clone of this quota using deep copy.
-		>>> a = Quota(0, 128, 100, 10, 10, 10, 20)
+		>>> a = Quota('a', 0, 128, 100, 10, 10, 10, 20)
 		>>> b = a.__clone__()
 		>>> print b
 		'flags: 0, metadata_items: 128, gigabytes: 100, floating_ips: 10, instances: 10, volumes: 10, cores: 20'
-		>>> a = Quota(0, 1, 1, 1, 1, 1, 1)
+		>>> a = Quota('z', 0, 1, 1, 1, 1, 1, 1)
 		>>> print a
 		'flags: 0, metadata_items: 1, gigabytes: 1, floating_ips: 1, instances: 1, volumes: 1, cores: 1'
 		>>> print b
 		'flags: 0, metadata_items: 128, gigabytes: 100, floating_ips: 10, instances: 10, volumes: 10, cores: 20'
 		"""
-		new_quota = Quota()
+		new_quota = Quota(self.get_project_name())
 		for key in self.quota.keys():
 			new_quota.set_quota(key, self.get_quota(key))
 		return new_quota
@@ -486,7 +486,7 @@ class Quota:
 		This method is used for reading in the original quota values for
 		projects. This is the values that the project admins signed up for.
 		parsing a string of 'name=value,' quotas.
-		>>> quota = Quota()
+		>>> quota = Quota('a')
 		>>> print quota
 		'flags: 0, metadata_items: 0, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
 		>>> quota.set_values(["project=1003unbc","flags=1","metadata_items=120","gigabytes=99"," floating_ips=30","   instances=4","	volumes =  2"," cores    =   20"])
@@ -499,7 +499,7 @@ class Quota:
 			name = value.split('=')[0].strip()
 			vs = value.split('=')[1].strip()
 			if name == 'project':
-				project_name = vs
+				self.project = name = project_name = vs
 			else:
 				vs = string.atoi(vs)
 				self.set_quota(name, vs) # possible to set a quota that doesn't exist by misspelling its name
@@ -515,7 +515,7 @@ class Quota:
 			
 	def set_quota(self, name, value):
 		""" Stores a quota value. 
-		>>> q = Quota(0, 1)
+		>>> q = Quota('project_a', 0, 1)
 		>>> print q
 		'flags: 0, metadata_items: 1, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
 		>>> q.get_exceeded()
@@ -538,13 +538,13 @@ class Quota:
 	# set negative quotas to zero and set the email flag to one.
 	def __normalize__(self):
 		"""Set any negative quotas to zero and set the email flag on the quota to 1.
-		>>> quota_good = Quota(0,1)
+		>>> quota_good = Quota('good', 0,1)
 		>>> print quota_good
 		'flags: 0, metadata_items: 1, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
 		>>> quota_good.__normalize__()
 		>>> print quota_good
 		'flags: 0, metadata_items: 1, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
-		>>> quota_bad = Quota(0,-1)
+		>>> quota_bad = Quota('bad', 0,-1)
 		>>> print quota_bad
 		'flags: 0, metadata_items: -1, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
 		>>> quota_bad.__normalize__()
@@ -569,7 +569,7 @@ class Quota:
 	def is_over_quota(self):
 		"""Returns True if the quota is over quota, that is the quota has a
 		negative value.
-		>>> p = Quota(0,2)
+		>>> p = Quota('a',0,2)
 		>>> q = p.__clone__()
 		>>> print q
 		'flags: 0, metadata_items: 2, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
@@ -596,15 +596,19 @@ class Quota:
 		
 	def get_exceeded(self):
 		"""Returns a list of quotas that have been exceeded. 
-		>>> q = Quota(0, -1, 0)
+		>>> q = Quota('a',0, -1, 0)
 		>>> print q.get_exceeded()
 		['metadata_items']
 		"""
 		return self.exceeded
 		
 	def get_project_name(self):
-		"""Returns the name of the project that this quota belongs to."""
-		return self.project_name
+		"""Returns the name of the project that this quota belongs to.
+		>>> q = Quota('binky')
+		>>> print q.get_project_name()
+		binky
+		"""
+		return self.project
 		
 	def get_contact(self):
 		############## continue here. ##############
@@ -640,7 +644,7 @@ def read_baseline_quota_file():
 			read_values = line.split(',') # read_values holds name=value pairs.
 			line_no = line_no + 1
 			# preset the quota values to defaults flags=0, meta=128, Gb=100, f_ips=10, insts=10, vols=10, cors=20.
-			project_quota = Quota(0, 128, 100, 10, 10, 10, 20)
+			project_quota = Quota('<none>', 0, 128, 100, 10, 10, 10, 20)
 			name = None
 			try:
 				name = project_quota.set_values(read_values)
