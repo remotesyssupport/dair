@@ -225,6 +225,12 @@ class ZoneQueryManager:
 			msg = "ZoneQueryManager.set_quota failed because no zone: '" + zone + "'"
 			log.error(msg)
 			return
+
+		# ensure that we don't set negative quota values by normalizing the quota.
+		# I do this because we have computed the project's allowed resources - the instances running
+		# It could be a negative number but we shouldn't set a quota to a negative value. 
+		if quota.is_over_quota():
+			quota.__normalize__()
 		# ssh -o StrictHostKeyChecking=no ADDRESS "nova-manage project quota PROJECT gigabytes QUOTA_GIGABYTES"
 		# fl = 'flags'
 		# G = 'gigabytes'
@@ -233,6 +239,7 @@ class ZoneQueryManager:
 		# V = 'volumes'
 		# C = 'cores'
 		# M = 'metadata_items'
+		### PRODUCTION CODE ###
 		euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + Quota.C + " " + str(quota.get_quota(Quota.C)) + "\""
 		print euca_cmd #self.__execute_call__(euca_cmd)
 		euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + Quota.F + " " + str(quota.get_quota(Quota.F)) + "\""
@@ -282,7 +289,7 @@ class ZoneQueryManager:
 		>>> other_zi.set_instance_count_per_project(Quota.M, resources)
 		>>> quotas = {}
 		>>> quota_a = Quota('project_a', 0, 10, 0, 0, 0, 0, 0);
-		>>> quota_b = Quota( 'project_b', 0, 1, 0, 0, 0, 0, 0);
+		>>> quota_b = Quota('project_b', 0, 1, 0, 0, 0, 0, 0);
 		>>> quotas['project_a'] = quota_a
 		>>> print quota_a
 		'flags: 0, metadata_items: 10, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
@@ -290,8 +297,8 @@ class ZoneQueryManager:
 		>>> new_quotas = zqm.compute_zone_quotas(quotas, other_zi)
 		>>> print new_quotas['project_a']
 		'flags: 0, metadata_items: 1, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
-		>>> print new_quotas['project_b'] # project_b is over quota but don't set to a negative value.
-		'flags: 1, metadata_items: 0, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
+		>>> print new_quotas['project_b'] # project_b is now over quota.
+		'flags: 0, metadata_items: -1, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
 		"""
 		new_quotas = {}
 		for project in baseline_quotas.keys():
@@ -299,9 +306,10 @@ class ZoneQueryManager:
 			resources = other_zones_resources.get_resources(project)
 			# for each project in this zone subtract the projects total instances
 			new_quota = baseline_quotas[project].__minus__(resources)
-			if new_quota.is_over_quota():
+			# new_quota will have negative values 
+			#if new_quota.is_over_quota():
 				# Don't set a quota to a negative value but signal to email.
-				new_quota.__normalize__()
+				#new_quota.__normalize__()
 			# add the new quotas for this project to the return dictionary.
 			new_quotas[project] = new_quota
 		return new_quotas
@@ -348,38 +356,39 @@ class ZoneQueryManager:
 		
 	def email(self, zone, quota):
 		"""Emails users in the address list the message in msg. The list of recipiants 
-		is mailed if the quota object has the email flag set to 1 then it resets it.
+		is mailed if the quota object has the EMAILED flag set to 0. 
+		This method will always mail unless the EMAILED flag is set.
 		>>> zqm = ZoneQueryManager()
-		>>> quota = Quota('bloaded andrew.nisbet@cybera.ca', 1, -1) # over quota and sent email flag up.
+		>>> quota = Quota('bloaded andrew.nisbet@cybera.ca', 2, 0) # over quota but normalized, never mailed.
+		>>> quota.set_quota(Quota.M, -1)
 		>>> quota.is_over_quota()
 		True
 		>>> zqm.email('alberta', quota)
-		False
-		>>> quota = Quota('under_quota andrew.nisbet@cybera.ca', 0, -1) # over quota.
+		echo "Project bloaded is overquota: metadata_items, in zone alberta" | mail -s "Quota-Monitor: bloaded over quota" andrew.nisbet@cybera.ca
+		>>> print quota
+		'flags: 3, metadata_items: -1, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
+		>>> quota.__normalize__()
+		>>> print quota
+		'flags: 3, metadata_items: 0, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
 		>>> zqm.email('alberta', quota)
-		True
-		>>> zqm.email('alberta', quota) # over quota but email sent already.
-		False
-		>>> quota = Quota('project_b', -1, 22) # over quota but no one to send to.
-		>>> zqm.email('alberta', quota)
-		False
+		>>> print quota
+		'flags: 3, metadata_items: 0, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
 		"""
 		# in Unix: echo "Project x is overquota in zone y" | mail -s "Message from ROOT at Nova-ab" andrew.nisbet@cybera.ca
 		subject = "Quota-Monitor: " + quota.get_project_name() + " over quota"
-		body = "Project " + quota.get_project_name() + " is overquota in zone " + zone 
+		body = "Project " + quota.get_project_name() + " is overquota: " + quota.get_exceeded() + "in zone " + zone 
 		project_stakeholders = quota.get_contact()
 		if len(project_stakeholders) == 0:
-			return False
+			return
 		if quota.get_quota(Quota.fl) & Quota.EMAILED == 0: # The contacts haven't been emailed yet.
 			for contact in project_stakeholders:
-				cmd = 'echo \"' + body + '\" | mail -s \"' + body + '\" ' + contact
-			quota.set_quota(Quota.fl, Quota.EMAILED)
-			#print cmd
-			### PRODUCTION CODE ###
-			#self.__execute_call__(cmd)
-			return True
-		else:
-			return False
+				cmd = 'echo \"' + body + '\" | mail -s \"' + subject + '\" ' + contact
+				print cmd
+				### PRODUCTION CODE ###
+				#self.__execute_call__(cmd)
+				# set the emailed flag.
+				quota.set_quota(Quota.fl, (quota.get_quota(Quota.fl) | Quota.EMAILED))
+			return
 		
 		
 # metadata_items: 128
@@ -409,7 +418,8 @@ class Quota:
 	I = 'instances'
 	V = 'volumes'
 	C = 'cores'
-	EMAILED = 1
+	EMAILED = 1 # if set the project lead has been emailed about an over quota event.
+	OVER_QUOTA = 2   # Set so we can tell if a normalized quota was over-quota in the past.
 	
 	def __init__(self, name, flags=0, meta=0, Gb=0, f_ips=0, insts=0, vols=0, cors=0):
 		self.quota = {}
@@ -532,10 +542,10 @@ class Quota:
 		>>> print q
 		'flags: 0, metadata_items: 1, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
 		>>> q.get_exceeded()
-		[]
+		''
 		>>> q.set_quota(Quota.M, -1)
 		>>> q.get_exceeded()
-		['metadata_items']
+		'metadata_items, '
 		"""
 		if value < 0 and self.exceeded.__contains__(name) == False:
 			self.exceeded.append(name)
@@ -562,12 +572,12 @@ class Quota:
 		'flags: 0, metadata_items: -1, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
 		>>> quota_bad.__normalize__()
 		>>> print quota_bad
-		'flags: 1, metadata_items: 0, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
+		'flags: 2, metadata_items: 0, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
 		"""
 		for key in self.quota.keys():
 			if self.quota[key] < 0:
 				self.set_quota(key, 0)
-				self.set_quota(Quota.fl, (self.get_quota(Quota.fl) | Quota.EMAILED))
+				self.set_quota(Quota.fl, (self.get_quota(Quota.fl) | Quota.OVER_QUOTA))
 		
 	def __str__(self):
 		return repr("flags: %d, metadata_items: %d, gigabytes: %d, floating_ips: %d, instances: %d, volumes: %d, cores: %d" % \
@@ -599,11 +609,17 @@ class Quota:
 		>>> print s.is_over_quota()
 		True
 		>>> s.__normalize__()
+		>>> print s
+		'flags: 2, metadata_items: 0, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
 		>>> print s.is_over_quota()
 		True
 		"""
+		# if the over quota flag was set don't go any farther it was over quota at some time
+		if self.quota[Quota.fl] & Quota.OVER_QUOTA == Quota.OVER_QUOTA:
+			return True
+		# if not then check if any of the quotas are negative.
 		for key in self.quota.keys():
-			if self.quota[key] < 0 or self.quota[Quota.fl] & Quota.EMAILED == 1: # accounts for normalized quota
+			if self.quota[key] < 0: # accounts for normalized quota
 				return True
 		return False
 		
@@ -611,9 +627,15 @@ class Quota:
 		"""Returns a list of quotas that have been exceeded. 
 		>>> q = Quota('a',0, -1, 0)
 		>>> print q.get_exceeded()
-		['metadata_items']
+		metadata_items, 
+		>>> q = Quota('a',0, -1, -10)
+		>>> print q.get_exceeded()
+		metadata_items, gigabytes, 
 		"""
-		return self.exceeded
+		return_str = ""
+		for value in self.exceeded:
+			return_str += value + ", "
+		return return_str
 		
 	def get_project_name(self):
 		"""Returns the name of the project that this quota belongs to.
@@ -753,7 +775,7 @@ def update_emailed_list(emailed_overquota_projects, new_quotas):
 	>>> update_emailed_list(elist, quotas)
 	>>> print elist
 	{'project_a': 1}
-	>>> quotas['project_b'] = Quota( 'project_b', 1, 0, 0, 0, 0, 0, 0)
+	>>> quotas['project_b'] = Quota( 'project_b', 2, 0, 0, 0, 0, 0, 0) # quota was normalized
 	>>> update_emailed_list(elist, quotas)
 	>>> print elist
 	{'project_b': 1, 'project_a': 1}
@@ -773,8 +795,11 @@ def update_emailed_list(emailed_overquota_projects, new_quotas):
 	"""
 	# iterate over the new_quotas and add update the emailed
 	for project in new_quotas.keys():
+		# if the project is over quota add it to the list.
+		if new_quotas[project].get_quota(Quota.fl) & Quota.OVER_QUOTA == Quota.OVER_QUOTA:
+			emailed_overquota_projects[project] = 1
 		# if the project is over and the stakeholder has been emailed add to the list.
-		if new_quotas[project].get_quota(Quota.fl) & Quota.EMAILED == 1:	
+		if new_quotas[project].get_quota(Quota.fl) & Quota.EMAILED == Quota.EMAILED:
 			emailed_overquota_projects[project] = 1
 		if new_quotas[project].is_over_quota() == False: # take them off the list
 			# note that when they go over again they will get a new email.
@@ -814,10 +839,12 @@ def balance_quotas():
 	# set the quotas email flag. This is to stop over-quota projects from getting spam.
 	# deleting this file is not dangerous and will resend email to user's that are over-quota.
 	emailed_overquota_projects = read_emailed_list_file()
+	# Tell zone manager to see what's running system wide.
 	zoneManager.get_zone_resource_snapshots()
 	for zone in zoneManager.get_zones():
+		# given a specific zone, what resources are being used in other zones?
 		other_zones_resources = zoneManager.get_other_zones_current_resources(zone)
-		#print "I am zone " + zone
+		# new_quotas will have quotas for all projects in this zone.
 		new_quotas = zoneManager.compute_zone_quotas(quotas, other_zones_resources)
 		for project in new_quotas.keys():
 			zoneManager.set_quota(zone, new_quotas[project])
