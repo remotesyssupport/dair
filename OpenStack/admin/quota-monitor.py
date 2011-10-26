@@ -16,11 +16,14 @@ import subprocess	# for __execute_call__()
 import logging		# for logging
 import os.path		# for file testing.
 
-APP_DIR = '/home/cybera/dev/dair/OpenStack/admin/'
-GSTD_QUOTA_FILE = APP_DIR + "baseline_quotas.txt" # Gold standard quotas for baseline.
+### PRODUCTION CODE ###
+#APP_DIR = '/home/cybera/dev/dair/OpenStack/admin/'
+APP_DIR = '/root/dair/OpenStack/admin/'
+GSTD_QUOTA_FILE = APP_DIR + "baseline_quotas.cfg" # Gold standard quotas for baseline.
 DELINQUENT_FILE = APP_DIR + "Quota-monitor_scratch.tmp" # list of delinquent projects that HAVE been emailed.
 ### PRODUCTION CODE ###
-NOVA_CONF = "/home/cybera/dev/nova.conf" # nova.conf -- change for production.
+#NOVA_CONF = "/home/cybera/dev/nova.conf" # nova.conf -- change for production.
+NOVA_CONF = "/etc/nova/nova.conf" # nova.conf
 
 
 class QuotaLogger:
@@ -146,7 +149,13 @@ class ZoneQueryManager:
 		# this requires two greps of the nova.conf file but could be done in one.
 		# get the regions like: --region_list=alberta=208.75.74.10,quebec=208.75.75.10
 		results = self.__execute_call__("grep region_list " + NOVA_CONF)
-		results = results.split('region_list=')[1]
+		try:
+			results = results.split('region_list=')[1]
+		except:
+			log = QuotaLogger()
+			msg = "Nova conf not found at: " + NOVA_CONF
+			log.error(msg)
+			raise QuotaException(msg)
 		# now split on the regions separated by a ','
 		results = results.split(',')
 		for result in results:
@@ -186,34 +195,47 @@ class ZoneQueryManager:
 		sql_cmd_suffix = "'"
 		# for each quota run a query for the values currently in this zone.
 		# test data
-		cmd_result = """"""
-		if zone == 'quebec':
-			cmd_result = """
-			project_id	sum(size)
-			1003unbc	30
-			project_a	99
-			"""
-		else: # zone == 'ab':
-			cmd_result = """project_id	sum(size)
-			project_d	199
-			1003unbc	10
-			"""
+		#cmd_result = """"""
+		#if zone == 'quebec':
+		#	cmd_result = """
+		#	project_id	sum(size)
+		#	1003unbc	30
+		#	project_a	99
+		#	"""
+		#else: # zone == 'ab':
+		#	cmd_result = """project_id	sum(size)
+		#	project_d	199
+		#	1003unbc	10
+		#	"""
 		### PRODUCTION CODE ###
 		#print ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_GIGABYTES + sql_cmd_suffix
-		#cmd_result = __execute_call__(ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_GIGABYTES + sql_cmd_suffix)
+		cmd_result = __execute_call__(ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_GIGABYTES + sql_cmd_suffix)
 		result_dict = self.__parse_query_result__(cmd_result)
 		zone_project_instances.set_instance_count_per_project(Quota.G, result_dict)
-		#print ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_FLOAT_IPS + sql_cmd_suffix
-		zone_project_instances.set_instance_count_per_project(Quota.F, result_dict)
-		#print ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_INSTANCES + sql_cmd_suffix
-		zone_project_instances.set_instance_count_per_project(Quota.I, result_dict)
-		#print ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_VOLUMES + sql_cmd_suffix
-		zone_project_instances.set_instance_count_per_project(Quota.V, result_dict)
-		#print ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_CPUS + sql_cmd_suffix
-		zone_project_instances.set_instance_count_per_project(Quota.C, result_dict)
 		
-	def connection_is_open(self):
-		return True
+		
+		#print ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_FLOAT_IPS + sql_cmd_suffix
+		cmd_result = __execute_call__(ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_FLOAT_IPS + sql_cmd_suffix)
+		result_dict = self.__parse_query_result__(cmd_result)
+		zone_project_instances.set_instance_count_per_project(Quota.F, result_dict)
+		
+		
+		#print ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_INSTANCES + sql_cmd_suffix
+		cmd_result = __execute_call__(ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_INSTANCES + sql_cmd_suffix)
+		result_dict = self.__parse_query_result__(cmd_result)
+		zone_project_instances.set_instance_count_per_project(Quota.I, result_dict)
+		
+		
+		#print ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_VOLUMES + sql_cmd_suffix
+		cmd_result = __execute_call__(ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_VOLUMES + sql_cmd_suffix)
+		result_dict = self.__parse_query_result__(cmd_result)
+		zone_project_instances.set_instance_count_per_project(Quota.V, result_dict)
+		
+		
+		#print ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_CPUS + sql_cmd_suffix
+		cmd_result = __execute_call__(ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_CPUS + sql_cmd_suffix)
+		result_dict = self.__parse_query_result__(cmd_result)
+		zone_project_instances.set_instance_count_per_project(Quota.C, result_dict)
 		
 	def set_quota(self, zone, quota):
 		"""Sets a quota for a project in a secific zone."""
@@ -383,9 +405,9 @@ class ZoneQueryManager:
 		if quota.get_quota(Quota.fl) & Quota.EMAILED == 0: # The contacts haven't been emailed yet.
 			for contact in project_stakeholders:
 				cmd = 'echo \"' + body + '\" | mail -s \"' + subject + '\" ' + contact
-				print cmd
+				#print cmd
 				### PRODUCTION CODE ###
-				#self.__execute_call__(cmd)
+				self.__execute_call__(cmd)
 				# set the emailed flag.
 				quota.set_quota(Quota.fl, (quota.get_quota(Quota.fl) | Quota.EMAILED))
 			return
@@ -672,10 +694,11 @@ class Quota:
 # project=a,flags=1,metadata_items=120,gigabytes=99, floating_ips=9,   instances=4,	volumes =  2, cores    =   20
 # flags=0,metadata_items=121,gigabytes=10, floating_ips=10,   instances=5,	volumes =4, cores=7,project=z
 # cores=999, project=p
-def read_baseline_quota_file():
+def read_baseline_quota_file(file_name=GSTD_QUOTA_FILE):
+	"""Reads in the base quota file."""
 	quotas = {}
 	try:
-		f = open(GSTD_QUOTA_FILE)
+		f = open(file_name)
 	except:
 		log = QuotaLogger()
 		msg = "No initial project quota values defined for projects. There should be a file here called %s." % (GSTD_QUOTA_FILE)
@@ -909,6 +932,6 @@ def main():
 
 
 if __name__ == "__main__":
-	import doctest
-	doctest.testmod()
+	#import doctest
+	#doctest.testmod()
 	sys.exit(main())
