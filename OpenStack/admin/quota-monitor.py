@@ -738,6 +738,50 @@ def write_emailed_list(emailed_dict, file_name=DELINQUENT_FILE):
 	finally:
 		f.close()
 		
+def update_emailed_list(emailed_overquota_projects, new_quotas):
+	"""Function updates the dictionary of emailed users with any quotas that have gone over.
+	>>> quotas = {}
+	>>> elist = {}
+	>>> update_emailed_list(elist, quotas)
+	>>> print elist
+	{}
+	>>> elist['project_a'] = 1
+	>>> update_emailed_list(elist, quotas)
+	>>> print elist
+	{'project_a': 1}
+	>>> quotas['project_b'] = Quota( 'project_b', 0, 0, 0, 0, 0, 0, 0)
+	>>> update_emailed_list(elist, quotas)
+	>>> print elist
+	{'project_a': 1}
+	>>> quotas['project_b'] = Quota( 'project_b', 1, 0, 0, 0, 0, 0, 0)
+	>>> update_emailed_list(elist, quotas)
+	>>> print elist
+	{'project_b': 1, 'project_a': 1}
+	>>> quotas['project_a'] = Quota('project_a', 0, -10, 0, 0, 0, 0, 0)
+	>>> quotas['project_b'] = Quota( 'project_b', 1, -1, 0, 0, 0, 0, 0)
+	>>> update_emailed_list(elist, quotas)
+	>>> print elist
+	{'project_b': 1, 'project_a': 1}
+	>>> quotas['project_a'] = Quota('project_a', 0, 10, 0, 0, 0, 0, 0) # back under quota...
+	>>> update_emailed_list(elist, quotas)
+	>>> print elist
+	{'project_b': 1}
+	>>> quotas['project_b'] = Quota('project_a', 0, 1, 0, 0, 0, 0, 0) # back under quota...
+	>>> update_emailed_list(elist, quotas)
+	>>> print elist
+	{}
+	"""
+	# iterate over the new_quotas and add update the emailed
+	for project in new_quotas.keys():
+		# if the project is over and the stakeholder has been emailed add to the list.
+		if new_quotas[project].is_over_quota() and new_quotas[project].get_quota(Quota.fl) & Quota.EMAILED == 1:	
+			emailed_overquota_projects[project] = 1
+		if new_quotas[project].is_over_quota() == False:
+			try:
+				del emailed_overquota_projects[project]
+			except KeyError:
+				pass # there was no key so you can't delete it
+		
 # There has to be a way to reset the quotas to the baseline for all groups 
 # in the case that there is a problem and the quotas get out of synch.
 # This method does that.
@@ -778,7 +822,7 @@ def balance_quotas():
 			zoneManager.set_quota(zone, new_quotas[project])
 			if new_quotas[project].is_over_quota():
 				zoneManager.email(zone, new_quotas[project])
-		#update_emailed_list(emailed_overquota_projects, new_quotas)
+		update_emailed_list(emailed_overquota_projects, new_quotas)
 	write_emailed_list(emailed_overquota_projects)
 	return 0
 
