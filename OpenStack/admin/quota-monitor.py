@@ -879,7 +879,7 @@ def balance_quotas():
 
 def usage():
 	return """
-Usage: quota-monitor.py [-hr, --help, --reset]
+Usage: quota-monitor.py -[b|h|r], --help, --reset
 
     This script is meant to be run routinely by cron to check and 
     balance quotas over zones in OpenStack.
@@ -900,6 +900,7 @@ Usage: quota-monitor.py [-hr, --help, --reset]
     -h, --help prints this message and exits with status 1.
     -r, --reset resets the quotas to the original values set in the
 		./baseline_quotas.txt file.
+	-b, balances the quotas over the projects by zone.
 """
 	
 class QuotaException:
