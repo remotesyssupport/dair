@@ -263,17 +263,17 @@ class ZoneQueryManager:
 		# M = 'metadata_items'
 		### PRODUCTION CODE ###
 		euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + quota.get_project_name() + " " + Quota.C + " " + str(quota.get_quota(Quota.C)) + "\""
-		print euca_cmd #self.__execute_call__(euca_cmd)
+		self.__execute_call__(euca_cmd)
 		euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + quota.get_project_name() + " " + Quota.F + " " + str(quota.get_quota(Quota.F)) + "\""
-		print euca_cmd #self.__execute_call__(euca_cmd)
+		self.__execute_call__(euca_cmd)
 		euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + quota.get_project_name() + " " + Quota.G + " " + str(quota.get_quota(Quota.G)) + "\""
-		print euca_cmd #self.__execute_call__(euca_cmd)
+		self.__execute_call__(euca_cmd)
 		euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + quota.get_project_name() + " " + Quota.I + " " + str(quota.get_quota(Quota.I)) + "\""
-		print euca_cmd #self.__execute_call__(euca_cmd)
+		self.__execute_call__(euca_cmd)
 		euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + quota.get_project_name() + " " + Quota.M + " " + str(quota.get_quota(Quota.M)) + "\""
-		print euca_cmd #self.__execute_call__(euca_cmd)
+		self.__execute_call__(euca_cmd)
 		euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + quota.get_project_name() + " " + Quota.V + " " + str(quota.get_quota(Quota.V)) + "\""
-		print euca_cmd #self.__execute_call__(euca_cmd)
+		self.__execute_call__(euca_cmd)
 		
 		
 	def get_zones(self):
