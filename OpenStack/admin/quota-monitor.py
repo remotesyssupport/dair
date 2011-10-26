@@ -263,6 +263,7 @@ class ZoneQueryManager:
 		# M = 'metadata_items'
 		### PRODUCTION CODE ###
 		euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + quota.get_project_name() + " " + Quota.C + " " + str(quota.get_quota(Quota.C)) + "\""
+		print "running: " + euca_cmd
 		print self.__execute_call__(euca_cmd)
 		euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + quota.get_project_name() + " " + Quota.F + " " + str(quota.get_quota(Quota.F)) + "\""
 		self.__execute_call__(euca_cmd)
