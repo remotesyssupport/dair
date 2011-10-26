@@ -12,10 +12,9 @@ import os			# for getcwd()
 import sys
 import getopt       # Command line processing.
 import string		# for atoi()
-import subprocess	# for __execute__()
+import subprocess	# for __execute_call__()
 import logging		# for logging
 import os.path		# for file testing.
-import time			# for sleep() in __execute__()
 
 ### PRODUCTION CODE ###
 #APP_DIR = '/home/cybera/dev/dair/OpenStack/admin/'
@@ -157,7 +156,7 @@ class ZoneQueryManager:
 		self.password = None
 		# this requires two greps of the nova.conf file but could be done in one.
 		# get the regions like: --region_list=alberta=208.75.74.10,quebec=208.75.75.10
-		results = self.__execute__("grep region_list " + NOVA_CONF)
+		results = self.__execute_call__("grep region_list " + NOVA_CONF)
 		try:
 			results = results.split('region_list=')[1]
 		except:
@@ -171,21 +170,20 @@ class ZoneQueryManager:
 			name_value = result.split('=')
 			self.regions[name_value[0].strip()] = name_value[1].strip() # gets rid of nagging newline
 		# now the password --sql_connection=mysql://root:xxxxxxxxxxxxx@192.168.2.10/nova
-		results = self.__execute__("grep sql_connection " + NOVA_CONF)
+		results = self.__execute_call__("grep sql_connection " + NOVA_CONF)
 		self.password = results.split('root:')[1].split('@')[0] # yuck.
 		#print self.password, self.regions
 		
-	#def __execute_call__(self, command_and_args):
-	#	""" returns the stdout of a Unix command """
-	#	cmd = command_and_args.split()
-	#	if len(cmd) < 1:
-	#		return "<no cmd to execute>"
-	#	process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-	#	return process.communicate()[0]
+	def __execute_call__(self, command_and_args):
+		""" returns the stdout of a Unix command """
+		cmd = command_and_args.split()
+		if len(cmd) < 1:
+			return "<no cmd to execute>"
+		process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+		return process.communicate()[0]
 		
 	######################################################
 	def __execute__(self, cmd, process_input=None, addl_env=None, check_exit_code=True, attempts=1):
-		"""Execute the openstack way see vm-toolkit bundle utils.py"""
 		while attempts > 0:
 			attempts -= 1
 			try:
@@ -446,7 +444,7 @@ class ZoneQueryManager:
 				cmd = 'echo \"' + body + '\" | mail -s \"' + subject + '\" ' + contact
 				#print cmd
 				### PRODUCTION CODE ###
-				self.__execute__(cmd)
+				self.__execute_call__(cmd)
 				# set the emailed flag.
 				quota.set_quota(Quota.fl, (quota.get_quota(Quota.fl) | Quota.EMAILED))
 			return
