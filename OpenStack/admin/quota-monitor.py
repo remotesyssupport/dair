@@ -774,9 +774,10 @@ def update_emailed_list(emailed_overquota_projects, new_quotas):
 	# iterate over the new_quotas and add update the emailed
 	for project in new_quotas.keys():
 		# if the project is over and the stakeholder has been emailed add to the list.
-		if new_quotas[project].is_over_quota() and new_quotas[project].get_quota(Quota.fl) & Quota.EMAILED == 1:	
+		if new_quotas[project].get_quota(Quota.fl) & Quota.EMAILED == 1:	
 			emailed_overquota_projects[project] = 1
-		if new_quotas[project].is_over_quota() == False:
+		if new_quotas[project].is_over_quota() == False: # take them off the list
+			# note that when they go over again they will get a new email.
 			try:
 				del emailed_overquota_projects[project]
 			except KeyError:
