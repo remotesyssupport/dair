@@ -6,9 +6,8 @@ import re
 import atexit
 
 """
-Performs database queries across all zones and returns total, used and
-available resources for each compute node plus the cumulative totals
-for each zone
+REST service that provides information about cloud resources, machine types,
+and project quotas.  Should be run on each management node in the cloud.
 """
 
 NOVA_CONF = '/etc/nova/nova.conf'
@@ -36,26 +35,26 @@ def cleanup():
 class CloudResources:
 	def GET(self):
 		node_usage = conn.execute(
-			"SELECT s.host, \
-			c.vcpus,c.vcpus_used, \
-			c.vcpus-c.vcpus_used AS vcpus_avail, \
-			c.memory_mb,c.memory_mb_used, \
-			c.memory_mb-c.memory_mb_used AS memory_mb_avail \
-			FROM compute_nodes AS c \
-			INNER JOIN services AS s ON c.service_id=s.id \
-			WHERE s.binary='nova-compute' AND s.deleted=0 AND s.disabled=0"
+			"SELECT host, "
+			"vcpus,vcpus_used, "
+			"vcpus-vcpus_used AS vcpus_avail, "
+			"memory_mb,memory_mb_used, "
+			"memory_mb-memory_mb_used AS memory_mb_avail "
+			"FROM compute_nodes "
+			"INNER JOIN services AS s ON service_id=s.id "
+			"WHERE binary='nova-compute' AND s.deleted=0 AND disabled=0"
 		)
 	
 		total_usage = conn.execute(
-			"SELECT CAST(SUM(c.vcpus) AS SIGNED) AS vcpus, \
-			CAST(SUM(c.vcpus_used) AS SIGNED) AS vcpus_used, \
-			CAST(SUM(c.vcpus)-SUM(c.vcpus_used) AS SIGNED) AS vcpus_avail, \
-			CAST(SUM(c.memory_mb) AS SIGNED) AS memory_mb, \
-			CAST(SUM(c.memory_mb_used) AS SIGNED) AS memory_mb_used, \
-			CAST(SUM(c.memory_mb)-SUM(c.memory_mb_used) AS SIGNED) AS memory_mb_avail \
-			FROM compute_nodes AS c \
-			INNER JOIN services AS s ON c.service_id=s.id \
-			WHERE s.binary='nova-compute' AND s.deleted=0 AND s.disabled=0"
+			"SELECT CAST(SUM(vcpus) AS SIGNED) AS vcpus, "
+			"CAST(SUM(vcpus_used) AS SIGNED) AS vcpus_used, "
+			"CAST(SUM(vcpus)-SUM(c.vcpus_used) AS SIGNED) AS vcpus_avail, "
+			"CAST(SUM(memory_mb) AS SIGNED) AS memory_mb, "
+			"CAST(SUM(memory_mb_used) AS SIGNED) AS memory_mb_used, "
+			"CAST(SUM(memory_mb)-SUM(c.memory_mb_used) AS SIGNED) AS memory_mb_avail "
+			"FROM compute_nodes "
+			"INNER JOIN services AS s ON service_id=s.id "
+			"WHERE binary='nova-compute' AND s.deleted=0 AND disabled=0"
 		)
 
 		resources = {}
@@ -73,9 +72,9 @@ class CloudResources:
 class MachineTypes:
 	def GET(self):
 		result = conn.execute(
-			"SELECT name,vcpus,memory_mb,local_gb_swap \
-			FROM instance_types \
-			WHERE deleted=0"
+			"SELECT name,vcpus,memory_mb,local_gb,swap "
+			"FROM instance_types "
+			"WHERE deleted=0"
 		)
 
 		machine_types = {}
@@ -89,13 +88,39 @@ class MachineTypes:
 
 class Quotas:
 	def GET(self, project):
-		result = conn.execute(
-			"SELECT instances,cores,volumes,gigabytes,floating_ups,metadate_items \
-			FROM quotas \
-			WHERE project_id=%(project)s"
+		total = conn.execute(
+			"SELECT instances,cores,volumes,gigabytes,floating_ips "
+			"FROM quotas "
+			"WHERE project_id=%(project)s",
+			project=project
 		)
 
-		quotas = dict(result.first())
+		used_compute = conn.execute(
+			"SELECT COUNT(1) as instances, "
+			"CAST(SUM(vcpus) AS SIGNED) as cores "
+			"FROM instances "
+			"WHERE project_id=%(project)s AND deleted=0",
+			project=project
+		)
+
+		used_volume = conn.execute(
+			"SELECT COUNT(1) as volumes, "
+			"CAST(SUM(size) AS SIGNED) as gigabytes "
+			"FROM volumes "
+			"WHERE project_id=%(project)s AND deleted=0",
+			project=project
+		)
+
+		used_ip = conn.execute(
+			"SELECT COUNT(1) as floating_ips "
+			"FROM floating_ips "
+			"WHERE project_id=%(project)s AND deleted=0",
+			project=project
+		)
+
+		quotas = {}
+		quotas['total'] = dict(total.first())
+		quotas['used'] = dict(used_compute.first().items() + used_volume.first().items() + used_ip.first().items())
 		return json.dumps(quotas)
 
 if __name__ == '__main__':
