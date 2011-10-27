@@ -300,7 +300,8 @@ class ZoneQueryManager:
 		# M = 'metadata_items'
 		### PRODUCTION CODE ###
 		euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + quota.get_project_name() + " " + Quota.C + " " + str(quota.get_quota(Quota.C)) + "\""
-		print self.__execute__(euca_cmd)
+		results = self.__execute__(euca_cmd)
+		
 		euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + quota.get_project_name() + " " + Quota.F + " " + str(quota.get_quota(Quota.F)) + "\""
 		self.__execute__(euca_cmd)
 		euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + quota.get_project_name() + " " + Quota.G + " " + str(quota.get_quota(Quota.G)) + "\""
@@ -311,6 +312,24 @@ class ZoneQueryManager:
 		self.__execute__(euca_cmd)
 		euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + quota.get_project_name() + " " + Quota.V + " " + str(quota.get_quota(Quota.V)) + "\""
 		self.__execute__(euca_cmd)
+		
+	def __is_successful(self, quota_name, expected, results):
+		"""Returns True if the command successfully fired and false otherwise.
+		('metadata_items: 128\ngigabytes: 100\nfloating_ips: 10\ninstances: 10\nvolumes: 10\ncores: 8\n', '')
+		"""
+		try:
+			r_str = results[0]
+		except IndexError:
+			return False
+		for q in r_str.splitlines():
+			test_quota = q.split(': ')
+			if test_quota[0] == quota_name:
+				if test_quota[1] == expected:
+					return True
+		log = QuotaLogger()
+		msg = "failed to set '" + quota_name + "'"
+		log.error(msg)
+		return False # if we got here we have failed.
 		
 		
 	def get_zones(self):
