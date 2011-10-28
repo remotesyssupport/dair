@@ -301,7 +301,7 @@ class ZoneQueryManager:
 		# M = 'metadata_items'
 		### PRODUCTION CODE ###
 		# get the current quota
-		euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + quota.get_project_name()
+		euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + quota.get_project_name() + "\""
 		results = self.__execute__(euca_cmd)
 		current_quota = Quota(quota.get_project_name())
 		current_quota.set_current_values(results)
