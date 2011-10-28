@@ -119,7 +119,10 @@ class Quotas:
 		)
 
 		quotas = {}
-		quotas['total'] = dict(total.first())
+		try:
+			quotas['total'] = dict(total.first())
+		except TypeError:
+			return "Unknown project"
 		quotas['used'] = dict(used_compute.first().items() + used_volume.first().items() + used_ip.first().items())
 		return json.dumps(quotas)
 
