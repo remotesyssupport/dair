@@ -248,6 +248,8 @@ class ZoneQueryManager:
 		### PRODUCTION CODE ###
 		#print ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_GIGABYTES + sql_cmd_suffix
 		cmd_result = self.__execute_call__(ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_GIGABYTES + sql_cmd_suffix)
+		print ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_GIGABYTES + sql_cmd_suffix
+		print cmd_result
 		result_dict = self.__parse_query_result__(cmd_result)
 		zone_project_instances.set_instance_count_per_project(Quota.G, result_dict)
 		
