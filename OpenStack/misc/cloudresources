@@ -51,7 +51,7 @@ class CloudResources:
 			"CAST(SUM(vcpus)-SUM(c.vcpus_used) AS SIGNED) AS vcpus_avail, "
 			"CAST(SUM(memory_mb) AS SIGNED) AS memory_mb, "
 			"CAST(SUM(memory_mb_used) AS SIGNED) AS memory_mb_used, "
-			"CAST(SUM(memory_mb)-SUM(c.memory_mb_used) AS SIGNED) AS memory_mb_avail "
+			"CAST(SUM(memory_mb)-SUM(memory_mb_used) AS SIGNED) AS memory_mb_avail "
 			"FROM compute_nodes "
 			"INNER JOIN services AS s ON service_id=s.id "
 			"WHERE binary='nova-compute' AND s.deleted=0 AND disabled=0"
@@ -91,13 +91,13 @@ class Quotas:
 		total = conn.execute(
 			"SELECT instances,cores,volumes,gigabytes,floating_ips "
 			"FROM quotas "
-			"WHERE project_id=%(project)s",
+			"WHERE project_id=%(project)s AND deleted=0",
 			project=project
 		)
 
 		used_compute = conn.execute(
 			"SELECT COUNT(1) as instances, "
-			"CAST(SUM(vcpus) AS SIGNED) as cores "
+			"IFNULL(CAST(SUM(vcpus) AS SIGNED), 0) as cores "
 			"FROM instances "
 			"WHERE project_id=%(project)s AND deleted=0",
 			project=project
@@ -105,7 +105,7 @@ class Quotas:
 
 		used_volume = conn.execute(
 			"SELECT COUNT(1) as volumes, "
-			"CAST(SUM(size) AS SIGNED) as gigabytes "
+			"IFNULL(CAST(SUM(size) AS SIGNED), 0) as gigabytes "
 			"FROM volumes "
 			"WHERE project_id=%(project)s AND deleted=0",
 			project=project
