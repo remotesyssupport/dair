@@ -619,7 +619,7 @@ class Quota:
 			
 		for q in r_str.splitlines():
 			test_quota = q.split(': ')
-			if self.get_quota(test_quota[0]) != test_quota[1]:
+			if self.get_quota(test_quota[0]) != string.atoi(test_quota[1]):
 				self.set_quota(test_quota[0], string.atoi(test_quota[1]), True)
 			
 		
