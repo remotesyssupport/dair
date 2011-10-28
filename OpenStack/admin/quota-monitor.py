@@ -288,6 +288,8 @@ class ZoneQueryManager:
 					log = QuotaLogger()
 					log.error("failed to set '" + quota_name + "' for " + baseline_quota.get_project_name() + " in zone " + zone)
 			return # just baselines set.
+			
+			
 		# ensure that we don't set negative quota values by normalizing the quota.
 		# I do this because we have computed the project's allowed resources - the instances running
 		# It could be a negative number but we shouldn't set a quota to a negative value. 
@@ -301,7 +303,7 @@ class ZoneQueryManager:
 		current_quota = Quota(computed_quota.get_project_name())
 		current_quota.set_current_values(results)
 		# if there is no change in the quotas 
-		if computed_quota.compare(current_quota) == 0 and computed_quota.compare(baseline_quota) == 0:
+		if computed_quota.compare(current_quota) == 0 and current_quota.compare(baseline_quota) == 0:
 			print "no change required"
 			return # no change required
 			
