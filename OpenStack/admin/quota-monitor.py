@@ -984,8 +984,7 @@ def reset_quotas():
 	baseline_quotas = read_baseline_quota_file()
 	zoneManager = ZoneQueryManager()
 	for zone in zoneManager.get_zones():
-		zoneManager.set_quotas(zone, baseline_quotas) # all zones get the same project quota.
-		for project in new_quotas.keys():
+		for project in baseline_quotas.keys():
 			zoneManager.set_quota(zone, baseline_quotas[project], None)
 	return 0
 	
