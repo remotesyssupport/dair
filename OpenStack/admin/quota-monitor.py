@@ -300,6 +300,15 @@ class ZoneQueryManager:
 		# C = 'cores'
 		# M = 'metadata_items'
 		### PRODUCTION CODE ###
+		# get the current quota
+		euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + quota.get_project_name()
+		results = self.__execute__(euca_cmd)
+		current_quota = Quota(quota.get_project_name())
+		current_quota.set_current_values(results)
+		if quota.compare(current_quota) == 0:
+			print "no change required"
+			return # no change required
+			
 		print "=> here now...", quota.get_changed_quotas()
 		for quota_name in quota.get_changed_quotas():
 			euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + quota.get_project_name() + " " + quota_name + " " + str(quota.get_quota(quota_name)) + "\""
@@ -571,8 +580,7 @@ class Quota:
 		"""
 		return_quota = self.__clone__()
 		for key in self.quota.keys():
-			if quota.get_quota(key) != 0: # resources being used in other zones.
-				return_quota.set_quota(key, return_quota.get_quota(key) - quota.get_quota(key), True) # this can be a neg value.
+			return_quota.set_quota(key, return_quota.get_quota(key) - quota.get_quota(key)) # this can be a neg value.
 		return return_quota
 		
 	def __clone__(self):
@@ -591,6 +599,47 @@ class Quota:
 		for key in self.quota.keys():
 			new_quota.set_quota(key, self.get_quota(key))
 		return new_quota
+		
+	def set_current_values(self, values):
+		"""Sets a quota to the current value
+		>>> results = ('metadata_items: 128\\ngigabytes: 100\\nfloating_ips: 10\\ninstances: 10\\nvolumes: 10\\ncores: 20\\n', '')
+		>>> q = Quota('test')
+		>>> q.set_current_values(results)
+		>>> print q
+		'flags: 0, metadata_items: 128, gigabytes: 100, floating_ips: 10, instances: 10, volumes: 10, cores: 20'
+		>>> q.set_current_values(('metadata_items: 128\\ngigabytes: 100\\nfloating_ips: 10\\ninstances: 3\\nvolumes: 10\\ncores: 20\\n', ''))
+		>>> print q
+		'flags: 0, metadata_items: 128, gigabytes: 100, floating_ips: 10, instances: 3, volumes: 10, cores: 20'
+		"""
+		try:
+			r_str = values[0]
+		except IndexError:
+			log = QuotaLogger()
+			log.error("failed to get quotas for " + quota.get_project_name() + " in zone " + zone)
+			return # this is ok since it will compare as changed and just set all values anyway.
+			
+		for q in r_str.splitlines():
+			test_quota = q.split(': ')
+			self.set_quota(test_quota[0], string.atoi(test_quota[1]))
+			
+		
+	def compare(self, rh):
+		"""Compares two quotas and return non zero if different and zero if the same.
+		>>> q = Quota('a')
+		>>> r = Quota('b')
+		>>> print q.compare(r)
+		0
+		>>> r.set_quota(Quota.G, 10)
+		>>> print q.compare(r)
+		-10
+		>>> q.set_quota(Quota.G, 20)
+		>>> print q.compare(r)
+		10
+		"""
+		result = 0
+		for key in self.quota.keys():
+			result += self.quota[key] - rh.get_quota(key)
+		return result
 	
 	# reads lines from a file and if the values are '=' separated it will assign the named quota the '=' value.
 	# WARNING: If the quota name is spelt incorrectly the default value is used.
