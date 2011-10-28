@@ -663,7 +663,7 @@ class Quota:
 				self.project = name = project_name = vs
 			else:
 				vs = string.atoi(vs)
-				self.set_quota(name, vs) # possible to set a quota that doesn't exist by misspelling its name
+				self.set_quota(name, vs, True) # possible to set a quota that doesn't exist by misspelling its name
 			#print "name = " + name + " value = " + str(vs)
 		if project_name == None or project_name == "":
 			# project name not specified in file throw exception
