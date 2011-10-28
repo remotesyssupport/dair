@@ -303,6 +303,7 @@ class ZoneQueryManager:
 		# get the current quota
 		euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + quota.get_project_name() + "\""
 		results = self.__execute__(euca_cmd)
+		print results
 		current_quota = Quota(quota.get_project_name())
 		current_quota.set_current_values(results)
 		if quota.compare(current_quota) == 0:
