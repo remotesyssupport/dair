@@ -17,13 +17,13 @@ import logging		# for logging
 import os.path		# for file testing.
 
 ### PRODUCTION CODE ###
-#APP_DIR = '/home/cybera/dev/dair/OpenStack/admin/'
-APP_DIR = '/root/dair/OpenStack/admin/'
+APP_DIR = '/home/cybera/dev/dair/OpenStack/admin/'
+#APP_DIR = '/root/dair/OpenStack/admin/'
 GSTD_QUOTA_FILE = APP_DIR + "baseline_quotas.cfg" # Gold standard quotas for baseline.
 DELINQUENT_FILE = APP_DIR + "Quota-monitor_scratch.tmp" # list of delinquent projects that HAVE been emailed.
 ### PRODUCTION CODE ###
-#NOVA_CONF = "/home/cybera/dev/nova.conf" # nova.conf -- change for production.
-NOVA_CONF = "/etc/nova/nova.conf" # nova.conf
+NOVA_CONF = "/home/cybera/dev/nova.conf" # nova.conf -- change for production.
+#NOVA_CONF = "/etc/nova/nova.conf" # nova.conf
 
 class ProcessExecutionError(IOError):
     def __init__(self, stdout=None, stderr=None, exit_code=None, cmd=None, description=None):
@@ -299,23 +299,34 @@ class ZoneQueryManager:
 		# C = 'cores'
 		# M = 'metadata_items'
 		### PRODUCTION CODE ###
-		euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + quota.get_project_name() + " " + Quota.C + " " + str(quota.get_quota(Quota.C)) + "\""
-		results = self.__execute__(euca_cmd)
+		for quota_name in quota.get_changed_quotas():
+			euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + quota.get_project_name() + " " + quota_name + " " + str(quota.get_quota(quota_name)) + "\""
+			results = self.__execute__(euca_cmd)
+			print results
+			if self.__is_successful__(quota_name, quota.get_quota(quota_name), results) == False:
+				log = QuotaLogger()
+				log.error("failed to set '" + quota_name + "' for " + quota.get_project_name() + " in zone " + zone)
 		
-		euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + quota.get_project_name() + " " + Quota.F + " " + str(quota.get_quota(Quota.F)) + "\""
-		self.__execute__(euca_cmd)
-		euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + quota.get_project_name() + " " + Quota.G + " " + str(quota.get_quota(Quota.G)) + "\""
-		self.__execute__(euca_cmd)
-		euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + quota.get_project_name() + " " + Quota.I + " " + str(quota.get_quota(Quota.I)) + "\""
-		self.__execute__(euca_cmd)
-		euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + quota.get_project_name() + " " + Quota.M + " " + str(quota.get_quota(Quota.M)) + "\""
-		self.__execute__(euca_cmd)
-		euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + quota.get_project_name() + " " + Quota.V + " " + str(quota.get_quota(Quota.V)) + "\""
-		self.__execute__(euca_cmd)
-		
-	def __is_successful(self, quota_name, expected, results):
+	def __is_successful__(self, quota_name, expected, results):
 		"""Returns True if the command successfully fired and false otherwise.
-		('metadata_items: 128\ngigabytes: 100\nfloating_ips: 10\ninstances: 10\nvolumes: 10\ncores: 8\n', '')
+		>>> results = ('metadata_items: 128\\ngigabytes: 100\\nfloating_ips: 10\\ninstances: 10\\nvolumes: 10\\ncores: 8\\n', '')
+		>>> zqm = ZoneQueryManager()
+		>>> print zqm.__is_successful__(Quota.G, 100, results)
+		True
+		>>> print zqm.__is_successful__(Quota.G, 99, results)
+		False
+		>>> print zqm.__is_successful__(Quota.C, 8, results)
+		True
+		>>> print zqm.__is_successful__(Quota.F, 10, results)
+		True
+		>>> print zqm.__is_successful__(Quota.F, -1, results)
+		False
+		>>> print zqm.__is_successful__(Quota.F, 10, ())
+		False
+		>>> print zqm.__is_successful__(Quota.F, 10, (''))
+		False
+		>>> print zqm.__is_successful__(Quota.F, 10, ('', ''))
+		False
 		"""
 		try:
 			r_str = results[0]
@@ -323,12 +334,8 @@ class ZoneQueryManager:
 			return False
 		for q in r_str.splitlines():
 			test_quota = q.split(': ')
-			if test_quota[0] == quota_name:
-				if test_quota[1] == expected:
-					return True
-		log = QuotaLogger()
-		msg = "failed to set '" + quota_name + "'"
-		log.error(msg)
+			if test_quota[0] == quota_name and string.atoi(test_quota[1]) == expected:
+				return True
 		return False # if we got here we have failed.
 		
 		
@@ -436,22 +443,23 @@ class ZoneQueryManager:
 		"""Emails users in the address list the message in msg. The list of recipiants 
 		is mailed if the quota object has the EMAILED flag set to 0. 
 		This method will always mail unless the EMAILED flag is set.
-		>>> zqm = ZoneQueryManager()
-		>>> quota = Quota('bloaded andrew.nisbet@cybera.ca', 2, 0) # over quota but normalized, never mailed.
-		>>> quota.set_quota(Quota.M, -1)
-		>>> quota.is_over_quota()
-		True
-		>>> zqm.email('alberta', quota)
-		echo "Project bloaded is overquota: metadata_items, in zone alberta" | mail -s "Quota-Monitor: bloaded over quota" andrew.nisbet@cybera.ca
-		>>> print quota
-		'flags: 3, metadata_items: -1, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
-		>>> quota.__normalize__()
-		>>> print quota
-		'flags: 3, metadata_items: 0, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
-		>>> zqm.email('alberta', quota)
-		>>> print quota
-		'flags: 3, metadata_items: 0, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
 		"""
+		#>>> zqm = ZoneQueryManager()
+		#>>> quota = Quota('bloaded andrew.nisbet@cybera.ca', 2, 0) # over quota but normalized, never mailed.
+		#>>> quota.set_quota(Quota.M, -1)
+		#>>> quota.is_over_quota()
+		#True
+		#>>> zqm.email('alberta', quota)
+		#echo "Project bloaded is overquota: metadata_items, in zone alberta" | mail -s "Quota-Monitor: bloaded over quota" andrew.nisbet@cybera.ca
+		#>>> print quota
+		#'flags: 3, metadata_items: -1, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
+		#>>> quota.__normalize__()
+		#>>> print quota
+		#'flags: 3, metadata_items: 0, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
+		#>>> zqm.email('alberta', quota)
+		#>>> print quota
+		#'flags: 3, metadata_items: 0, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
+		#"""
 		# in Unix: echo "Project x is overquota in zone y" | mail -s "Message from ROOT at Nova-ab" andrew.nisbet@cybera.ca
 		subject = "Quota-Monitor: " + quota.get_project_name() + " over quota"
 		body = "Project " + quota.get_project_name() + " is overquota: " + quota.get_exceeded() + "in zone " + zone 
@@ -502,6 +510,7 @@ class Quota:
 	def __init__(self, name, flags=0, meta=0, Gb=0, f_ips=0, insts=0, vols=0, cors=0):
 		self.quota = {}
 		self.exceeded = []
+		self.changed_quotas = [] # names of quotas to be set by nova-manage.
 		self.project = name
 		self.set_quota(Quota.fl, flags) # flags is currently if we have issued an email yet
 		self.set_quota(Quota.M, meta)
@@ -560,7 +569,8 @@ class Quota:
 		"""
 		return_quota = self.__clone__()
 		for key in self.quota.keys():
-			return_quota.set_quota(key, return_quota.get_quota(key) - quota.get_quota(key)) # this can be a neg value.
+			if quota.get_quota(key) != 0: # resources being used in other zones.
+				return_quota.set_quota(key, return_quota.get_quota(key) - quota.get_quota(key), True) # this can be a neg value.
 		return return_quota
 		
 	def __clone__(self):
@@ -614,8 +624,9 @@ class Quota:
 		else:
 			return project_name
 			
-	def set_quota(self, name, value):
-		""" Stores a quota value. 
+	def set_quota(self, name, value, mark_change=False):
+		""" Stores a quota value. Set mark_change to True if the quota
+		should be set with nova-manage. 
 		>>> q = Quota('project_a', 0, 1)
 		>>> print q
 		'flags: 0, metadata_items: 1, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
@@ -627,6 +638,10 @@ class Quota:
 		"""
 		if value < 0 and self.exceeded.__contains__(name) == False:
 			self.exceeded.append(name)
+		# if this quota marks a change in a quota's value that needs to be
+		# updated with nova-manage then save the quota name
+		if mark_change == True:
+			self.changed_quotas.append(name)
 		self.quota[name] = value
 		
 	def get_quota(self, name):
@@ -735,6 +750,9 @@ class Quota:
 			if contact.find('@') > 0:
 				return_list.append(contact.strip())
 		return return_list
+		
+	def get_changed_quotas(self):
+		return self.changed_quotas
 		
 		
 # The baseline quota file is made up of lines of quotas where the minimum entry
@@ -989,6 +1007,6 @@ def main():
 
 
 if __name__ == "__main__":
-	#import doctest
-	#doctest.testmod()
+	import doctest
+	doctest.testmod()
 	sys.exit(main())
