@@ -300,10 +300,11 @@ class ZoneQueryManager:
 		euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + computed_quota.get_project_name() + "\""
 		results = self.__execute__(euca_cmd)
 		print results
-		current_quota = Quota(computed_quota.get_project_name())
+		current_quota = computed_quota.__clone__()
+		# this will flag all the differences between current quotas and calculated quotas.
 		current_quota.set_current_values(results)
 		# if there is no change in the quotas 
-		if computed_quota.compare(current_quota) == 0 and baseline_quota.compare(current_quota) == 0:
+		if computed_quota.compare(current_quota) == 0:
 			print "no change required"
 			return # no change required
 			
