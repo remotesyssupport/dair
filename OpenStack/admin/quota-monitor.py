@@ -38,8 +38,8 @@ class ProcessExecutionError(IOError):
 class QuotaLogger:
 	"""Logs events of interest."""
 	### PRODUCTION CODE ###
-	#LOG_FILE = "/var/log/dair/quota-monitor.log" # log file
-	LOG_FILE = "quota-monitor.log" # log file
+	LOG_FILE = "/var/log/dair/quota-monitor.log" # log file
+	#LOG_FILE = "quota-monitor.log" # log file
 	def __init__(self):
 		self.logger = logging.getLogger('quota-monitor')
 		hdlr = logging.FileHandler(QuotaLogger.LOG_FILE)
@@ -261,6 +261,7 @@ class ZoneQueryManager:
 		#print ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_INSTANCES + sql_cmd_suffix
 		cmd_result = self.__execute_call__(ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_INSTANCES + sql_cmd_suffix)
 		result_dict = self.__parse_query_result__(cmd_result)
+		print "Q: "result_dict
 		zone_project_instances.set_instance_count_per_project(Quota.I, result_dict)
 		
 		
@@ -1041,7 +1042,7 @@ Usage: quota-monitor.py -[b|h|r], --help, --reset
     -h, --help prints this message and exits with status 1.
     -r, --reset resets the quotas to the original values set in the
 		./baseline_quotas.txt file.
-	-b, balances the quotas over the projects by zone.
+    -b, balances the quotas over the projects by zone.
 """
 	
 class QuotaException:
