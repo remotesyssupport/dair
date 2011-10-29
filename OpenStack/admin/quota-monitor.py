@@ -441,6 +441,7 @@ class ZoneQueryManager:
 		results = {}
 		if len(table) < 1: # empty set test -- naive test fix me
 			return results
+		print "=>table: " , table
 		clean_table = table.strip()
 		rows = clean_table.splitlines()
 		# remove the first row which is the column titles from the query
