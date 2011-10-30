@@ -18,13 +18,13 @@ import logging		# for logging
 import os.path		# for file testing.
 
 ### PRODUCTION CODE ###
-#APP_DIR = '/home/cybera/dev/dair/OpenStack/admin/'
-APP_DIR = '/root/dair/OpenStack/admin/'
+APP_DIR = '/home/cybera/dev/dair/OpenStack/admin/'
+#APP_DIR = '/root/dair/OpenStack/admin/'
 GSTD_QUOTA_FILE = APP_DIR + "baseline_quotas.cfg" # Gold standard quotas for baseline.
 DELINQUENT_FILE = APP_DIR + "Quota-monitor_scratch.tmp" # list of delinquent projects that HAVE been emailed.
 ### PRODUCTION CODE ###
-#NOVA_CONF = "/home/cybera/dev/nova.conf" # nova.conf -- change for production.
-NOVA_CONF = "/etc/nova/nova.conf" # nova.conf
+NOVA_CONF = "/home/cybera/dev/nova.conf" # nova.conf -- change for production.
+#NOVA_CONF = "/etc/nova/nova.conf" # nova.conf
 
 class ProcessExecutionError(IOError):
     def __init__(self, stdout=None, stderr=None, exit_code=None, cmd=None, description=None):
@@ -38,8 +38,8 @@ class ProcessExecutionError(IOError):
 class QuotaLogger:
 	"""Logs events of interest."""
 	### PRODUCTION CODE ###
-	LOG_FILE = "/var/log/dair/quota-monitor.log" # log file
-	#LOG_FILE = "quota-monitor.log" # log file
+	#LOG_FILE = "/var/log/dair/quota-monitor.log" # log file
+	LOG_FILE = "quota-monitor.log" # log file
 	def __init__(self):
 		self.logger = logging.getLogger('quota-monitor')
 		hdlr = logging.FileHandler(QuotaLogger.LOG_FILE)
@@ -387,14 +387,14 @@ class ZoneQueryManager:
 		>>> other_zi.set_instance_count_per_project(Quota.M, resources)
 		>>> quotas = {}
 		>>> quota_a = Quota('project_a', 0, 10, 0, 0, 0, 0, 0);
-		>>> quota_b = Quota('project_b', 0, 1, 0, 0, 0, 0, 0);
+		>>> quota_b = Quota('project_b', 0, -1, 0, 0, 0, 0, 0);
 		>>> quotas['project_a'] = quota_a
 		>>> print quota_a
 		'flags: 0, metadata_items: 10, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
 		>>> quotas['project_b'] = quota_b
 		>>> new_quotas = zqm.compute_zone_quotas(quotas, other_zi)
 		>>> print new_quotas['project_a']
-		'flags: 0, metadata_items: 1, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
+		'flags: 0, metadata_items: 10, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
 		>>> print new_quotas['project_b'] # project_b is now over quota.
 		'flags: 0, metadata_items: -1, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
 		"""
@@ -417,40 +417,30 @@ class ZoneQueryManager:
 		Takes a table output on stdout and returns it as a dictionary of 
 		results project=value. 
 		>>> zqm = ZoneQueryManager()
-		>>> table = "project_id	sum(size)\\n1003unbc	30\\nproject_a	99\\n\\n\\n"
-		>>> r = zqm.__parse_query_result__(table)
-		>>> print r['1003unbc']
-		30
-		>>> print r['project_a']
-		99
-		>>> table = "project_id	sum(size)\\n1003unbc	0\\nproject_a	1"
-		>>> r = zqm.__parse_query_result__(table)
-		>>> print r['1003unbc']
-		0
-		>>> print r['project_a']
-		1
-		>>> table = "project_id	sum(size)"
+		>>> table = ('project_id	sum(size)', '')
 		>>> r = zqm.__parse_query_result__(table)
 		>>> print r
 		{}
-		>>> table = ""
+		>>> table = ()
 		>>> r = zqm.__parse_query_result__(table)
 		>>> print r
 		{}
+		>>> table = ('project_id\\tcount(state)\\n1000RareLogic\\t4\\n1002Gnowit\\t1\\n1012BiOS\\t3\\n1016LiveReach3\\t5\\n1037Innovative\\t3\\n1041STC\\t1\\n1042IgnitePlayBeta\\t4\\n1045KiribatuRMS\\t2\\n1047VRStorm\\t5\\n1051BGPmon\\t3\\n1052idQuanta\\t3\\n1057TRLabs1\\t3\\n1057TRLabs2\\t1\\n1058iRok2\\t4\\n1059InsideMapp\\t1\\n1079ProjectWhiteCard\\t4\\n1150Dyno\\t2\\nMetafor\\t4\\nmoodle\\t9\\nnisbet\\t1\\npreTrainingTST\\t1\\nrackspace\\t1\\nrtest\\t1\\nspawn\\t1\\n', '')
+		>>> r = zqm.__parse_query_result__(table)
+		>>> print r
+		{'spawn': 1, '1047VRStorm': 5, '1002Gnowit': 1, '1052idQuanta': 3, '1059InsideMapp': 1, '1037Innovative': 3, 'preTrainingTST': 1, '1041STC': 1, '1016LiveReach3': 5, '1045KiribatuRMS': 2, '1058iRok2': 4, '1042IgnitePlayBeta': 4, '1012BiOS': 3, 'rackspace': 1, 'Metafor': 4, '1051BGPmon': 3, 'moodle': 9, 'nisbet': 1, 'rtest': 1, '1150Dyno': 2, '1000RareLogic': 4, '1079ProjectWhiteCard': 4, '1057TRLabs1': 3, '1057TRLabs2': 1}
 		"""
 		results = {}
 		if len(table) < 1: # empty set test -- naive test fix me
 			return results
-		print "=>table: " , table
-		clean_table = table.strip()
+		clean_table = table[0]
 		rows = clean_table.splitlines()
 		# remove the first row which is the column titles from the query
 		# or possibly an empty set message.
-		rows.__delitem__(0)
+		del rows[0]
 		for row in rows:
 			data = row.split()
-			if len(data) == 2:
-				results[data[0]] = string.atoi(data[1]) # project_id = [0], value = [1]
+			results[data[0]] = string.atoi(data[1]) # project_id = [0], value = [1]
 		return results
 		
 	def email(self, zone, quota):
@@ -1078,6 +1068,6 @@ def main():
 
 
 if __name__ == "__main__":
-	#import doctest
-	#doctest.testmod()
+	import doctest
+	doctest.testmod()
 	sys.exit(main())
