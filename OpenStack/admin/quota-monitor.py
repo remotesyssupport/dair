@@ -268,11 +268,14 @@ class ZoneQueryManager:
 		"""Sets a quota for a project in a secific zone."""
 		address = self.regions[zone]
 		# here we reset all quotas to their baselines.
+		print "baseline_quota contains: ", baseline_quota
 		if computed_quota == None:
+			
 			for quota_name in baseline_quota.get_changed_quotas(True):
 				euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + baseline_quota.get_project_name() + " " + quota_name + " " + str(baseline_quota.get_quota(quota_name)) + "\""
 				results = self.__execute__(euca_cmd)
-				print "baseline_quota contains: ", baseline_quota
+				print "setting " + quota_name + " to " + str(baseline_quota.get_quota(quota_name))
+				print "with: " + euca_cmd
 				print "reset results: ", results
 				if self.__is_successful__(quota_name, baseline_quota.get_quota(quota_name), results) == False:
 					log = QuotaLogger()
