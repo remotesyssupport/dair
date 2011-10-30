@@ -232,20 +232,7 @@ class ZoneQueryManager:
 		sql_cmd_prefix = " 'mysql -uroot -p" + self.password + " nova -e "
 		sql_cmd_suffix = "'"
 		# for each quota run a query for the values currently in this zone.
-		# test data
-		#cmd_result = """"""
-		#if zone == 'quebec':
-		#	cmd_result = """
-		#	project_id	sum(size)
-		#	1003unbc	30
-		#	project_a	99
-		#	"""
-		#else: # zone == 'ab':
-		#	cmd_result = """project_id	sum(size)
-		#	project_d	199
-		#	1003unbc	10
-		#	"""
-		### PRODUCTION CODE ###
+		
 		#print ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_GIGABYTES + sql_cmd_suffix
 		cmd_result = self.__execute_call__(ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_GIGABYTES + sql_cmd_suffix)
 		print ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_GIGABYTES + sql_cmd_suffix
@@ -285,7 +272,7 @@ class ZoneQueryManager:
 			for quota_name in baseline_quota.get_changed_quotas(True):
 				euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + baseline_quota.get_project_name() + " " + quota_name + " " + str(baseline_quota.get_quota(quota_name)) + "\""
 				results = self.__execute__(euca_cmd)
-				print results
+				print "reset results: ", results
 				if self.__is_successful__(quota_name, baseline_quota.get_quota(quota_name), results) == False:
 					log = QuotaLogger()
 					log.error("failed to set '" + quota_name + "' for " + baseline_quota.get_project_name() + " in zone " + zone)
