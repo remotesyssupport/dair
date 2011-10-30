@@ -272,6 +272,7 @@ class ZoneQueryManager:
 			for quota_name in baseline_quota.get_changed_quotas(True):
 				euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + baseline_quota.get_project_name() + " " + quota_name + " " + str(baseline_quota.get_quota(quota_name)) + "\""
 				results = self.__execute__(euca_cmd)
+				print "baseline_quota contains: ", baseline_quota
 				print "reset results: ", results
 				if self.__is_successful__(quota_name, baseline_quota.get_quota(quota_name), results) == False:
 					log = QuotaLogger()
@@ -834,6 +835,8 @@ def read_baseline_quota_file(file_name=GSTD_QUOTA_FILE):
 			project_quota = Quota('<none>', 0, 128, 100, 10, 10, 10, 20)
 			name = None
 			try:
+				###
+				print "values read from file: ", read_values
 				name = project_quota.set_values(read_values)
 			except:
 				log = QuotaLogger()
