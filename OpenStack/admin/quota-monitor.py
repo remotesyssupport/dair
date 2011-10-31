@@ -13,7 +13,7 @@ import os			# for getcwd()
 import sys
 import getopt       # Command line processing.
 import string		# for atoi()
-import subprocess	# for __execute_call__()
+import subprocess	# for __execute_shell__()
 import logging		# for logging
 import os.path		# for file testing.
 
@@ -157,7 +157,7 @@ class ZoneQueryManager:
 		self.password = None
 		# this requires two greps of the nova.conf file but could be done in one.
 		# get the regions like: --region_list=alberta=208.75.74.10,quebec=208.75.75.10
-		results = self.__execute_call__("grep region_list " + NOVA_CONF)
+		results = self.__execute_shell__("grep region_list " + NOVA_CONF)
 		try:
 			results = results.split('region_list=')[1]
 		except:
@@ -171,11 +171,11 @@ class ZoneQueryManager:
 			name_value = result.split('=')
 			self.regions[name_value[0].strip()] = name_value[1].strip() # gets rid of nagging newline
 		# now the password --sql_connection=mysql://root:xxxxxxxxxxxxx@192.168.2.10/nova
-		results = self.__execute_call__("grep sql_connection " + NOVA_CONF)
+		results = self.__execute_shell__("grep sql_connection " + NOVA_CONF)
 		self.password = results.split('root:')[1].split('@')[0] # yuck.
 		#print self.password, self.regions
 		
-	def __execute_call__(self, command_and_args):
+	def __execute_shell__(self, command_and_args):
 		""" returns the stdout of a Unix command """
 		cmd = command_and_args.split()
 		if len(cmd) < 1:
@@ -184,7 +184,7 @@ class ZoneQueryManager:
 		return process.communicate()[0]
 		
 	######################################################
-	def __execute__(self, cmd, process_input=None, addl_env=None, check_exit_code=True, attempts=1):
+	def __execute_nova__(self, cmd, process_input=None, addl_env=None, check_exit_code=True, attempts=1):
 		while attempts > 0:
 			attempts -= 1
 			try:
@@ -234,7 +234,7 @@ class ZoneQueryManager:
 		# for each quota run a query for the values currently in this zone.
 		
 		#print ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_GIGABYTES + sql_cmd_suffix
-		cmd_result = self.__execute_call__(ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_GIGABYTES + sql_cmd_suffix)
+		cmd_result = self.__execute_nova__(ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_GIGABYTES + sql_cmd_suffix)
 		print ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_GIGABYTES + sql_cmd_suffix
 		print cmd_result
 		result_dict = self.__parse_query_result__(cmd_result)
@@ -243,24 +243,24 @@ class ZoneQueryManager:
 		
 		
 		#print ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_FLOAT_IPS + sql_cmd_suffix
-		cmd_result = self.__execute_call__(ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_FLOAT_IPS + sql_cmd_suffix)
+		cmd_result = self.__execute_nova__(ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_FLOAT_IPS + sql_cmd_suffix)
 		result_dict = self.__parse_query_result__(cmd_result)
 		zone_project_instances.set_instance_count_per_project(Quota.F, result_dict)
 		
 		
 		#print ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_INSTANCES + sql_cmd_suffix
-		cmd_result = self.__execute__(ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_INSTANCES + sql_cmd_suffix)
+		cmd_result = self.__execute_nova__(ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_INSTANCES + sql_cmd_suffix)
 		result_dict = self.__parse_query_result__(cmd_result)
 		zone_project_instances.set_instance_count_per_project(Quota.I, result_dict)
 		
 		#print ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_VOLUMES + sql_cmd_suffix
-		cmd_result = self.__execute_call__(ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_VOLUMES + sql_cmd_suffix)
+		cmd_result = self.__execute_nova__(ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_VOLUMES + sql_cmd_suffix)
 		result_dict = self.__parse_query_result__(cmd_result)
 		zone_project_instances.set_instance_count_per_project(Quota.V, result_dict)
 		
 		
 		#print ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_CPUS + sql_cmd_suffix
-		cmd_result = self.__execute_call__(ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_CPUS + sql_cmd_suffix)
+		cmd_result = self.__execute_nova__(ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_CPUS + sql_cmd_suffix)
 		result_dict = self.__parse_query_result__(cmd_result)
 		zone_project_instances.set_instance_count_per_project(Quota.C, result_dict)
 		
@@ -273,7 +273,7 @@ class ZoneQueryManager:
 			
 			for quota_name in baseline_quota.get_changed_quotas(True):
 				euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + baseline_quota.get_project_name() + " " + quota_name + " " + str(baseline_quota.get_quota(quota_name)) + "\""
-				results = self.__execute__(euca_cmd)
+				results = self.__execute_nova__(euca_cmd)
 				print "setting " + quota_name + " to " + str(baseline_quota.get_quota(quota_name))
 				print "with: " + euca_cmd
 				print "reset results: ", results
@@ -291,7 +291,7 @@ class ZoneQueryManager:
 		# ssh -o StrictHostKeyChecking=no ADDRESS "nova-manage project quota PROJECT gigabytes QUOTA_GIGABYTES"
 		# get the current quota
 		euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + computed_quota.get_project_name() + "\""
-		results = self.__execute__(euca_cmd)
+		results = self.__execute_nova__(euca_cmd)
 		print results
 		current_quota = computed_quota.__clone__()
 		# this will flag all the differences between current quotas and calculated quotas.
@@ -304,7 +304,7 @@ class ZoneQueryManager:
 		print "=> here now...", current_quota.get_changed_quotas()
 		for quota_name in current_quota.get_changed_quotas():
 			euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + computed_quota.get_project_name() + " " + quota_name + " " + str(computed_quota.get_quota(quota_name)) + "\""
-			results = self.__execute__(euca_cmd)
+			results = self.__execute_nova__(euca_cmd)
 			print results
 			if self.__is_successful__(quota_name, computed_quota.get_quota(quota_name), results) == False:
 				log = QuotaLogger()
@@ -465,7 +465,7 @@ class ZoneQueryManager:
 				cmd = 'echo \"' + body + '\" | mail -s \"' + subject + '\" ' + contact
 				#print cmd
 				### PRODUCTION CODE ###
-				self.__execute_call__(cmd)
+				self.__execute_shell__(cmd)
 				# set the emailed flag.
 				quota.set_quota(Quota.fl, (quota.get_quota(Quota.fl) | Quota.EMAILED))
 			return
