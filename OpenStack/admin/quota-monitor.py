@@ -564,7 +564,7 @@ class Quota:
 		'flags: -1, metadata_items: -1, gigabytes: -1, floating_ips: -1, instances: -1, volumes: -1, cores: -1'
 		"""
 		return_quota = self.__clone__()
-		print "return_quotas before: ", return_quota, "\n"
+		#print "return_quotas before: ", return_quota, "\n"
 		print "quota arg contains: ", quota, "\n"
 		for key in self.quota.keys():
 			return_quota.set_quota(key, return_quota.get_quota(key) - quota.get_quota(key), True) # this can be a neg value.
@@ -1000,6 +1000,7 @@ def balance_quotas():
 	for zone in zoneManager.get_zones():
 		# given a specific zone, what resources are being used in other zones?
 		other_zones_resources = zoneManager.get_other_zones_current_resources(zone)
+		print "in zone " + zone, other_zones_resources, "\n"
 		# new_quotas will have quotas for all projects in this zone.
 		new_quotas = zoneManager.compute_zone_quotas(baseline_quotas, other_zones_resources)
 		for project in new_quotas.keys():
