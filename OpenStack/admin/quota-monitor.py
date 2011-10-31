@@ -295,7 +295,7 @@ class ZoneQueryManager:
 		results = self.__execute_nova__(euca_cmd)
 		print "euca_cmd results nova-manage: ",results
 		#current_quota = computed_quota.__clone__()
-		computed_quota = set_current_values(results)
+		computed_quota.set_current_values(results)
 		# this will flag all the differences between current quotas and calculated quotas.
 		#current_quota.set_current_values(results)
 		# if there is no change in the quotas 
