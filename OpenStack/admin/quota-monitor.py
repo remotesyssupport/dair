@@ -247,11 +247,12 @@ class ZoneQueryManager:
 		
 		#print ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_INSTANCES + sql_cmd_suffix
 		cmd_result = self.__execute_nova__(ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_INSTANCES + sql_cmd_suffix)
-		print ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_GIGABYTES + sql_cmd_suffix
-		print cmd_result
+		#print ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_GIGABYTES + sql_cmd_suffix
+		#print cmd_result
 		result_dict = self.__parse_query_result__(cmd_result)
 		print "Query produced: ", result_dict
 		zone_project_instances.set_instance_count_per_project(Quota.I, result_dict)
+		print zone_project_instances.get_resources("nisbet")
 		
 		#print ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_VOLUMES + sql_cmd_suffix
 		cmd_result = self.__execute_nova__(ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_VOLUMES + sql_cmd_suffix)
