@@ -292,12 +292,14 @@ class ZoneQueryManager:
 		# ssh -o StrictHostKeyChecking=no ADDRESS "nova-manage project quota PROJECT gigabytes QUOTA_GIGABYTES"
 		# get the current quota
 		euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + computed_quota.get_project_name() + "\""
-		results = self.__execute_nova__(euca_cmd)
-		print "euca_cmd results nova-manage: ",results
+		current_quotas = self.__execute_nova__(euca_cmd)
+		print "euca_cmd results nova-manage: ",current_quotas, "\n"
 		#current_quota = computed_quota.__clone__()
-		computed_quota.set_current_values(results)
+		print ">",computed_quota
+		computed_quota.set_current_values(current_quotas)
+		print ">>",computed_quota
 		# this will flag all the differences between current quotas and calculated quotas.
-		#current_quota.set_current_values(results)
+		#current_quota.set_current_values(current_quotas)
 		# if there is no change in the quotas 
 		#if computed_quota.compare(current_quota) == 0:
 		#	print "no change required"
@@ -566,7 +568,7 @@ class Quota:
 		"""
 		return_quota = self.__clone__()
 		for key in self.quota.keys():
-			return_quota.set_quota(key, return_quota.get_quota(key) - quota.get_quota(key)) # this can be a neg value.
+			return_quota.set_quota(key, return_quota.get_quota(key) - quota.get_quota(key), True) # this can be a neg value.
 		return return_quota
 		
 	def __clone__(self):
