@@ -1002,10 +1002,17 @@ def balance_quotas():
 	for zone in zoneManager.get_zones():
 		# given a specific zone, what resources are being used in other zones?
 		other_zones_resources = zoneManager.get_other_zones_current_resources(zone)
-		print "in zone other resources" + zone, other_zones_resources.get_resources('nisbet'), "\n"
+		print "in zone other resources for nisbet: " + zone + " ", other_zones_resources.get_resources('nisbet'), "\n"
 		# new_quotas will have quotas for all projects in this zone.
-		new_quotas = zoneManager.compute_zone_quotas(baseline_quotas, other_zones_resources)
-		for project in new_quotas.keys():
+		#new_quotas = zoneManager.compute_zone_quotas(baseline_quotas, other_zones_resources)
+		for project in baseline_quotas.keys():
+			# if the zone doesn't have a project by that name returns a zero-ed quota.
+			resources = other_zones_resources.get_resources(project)
+			# for each project in this zone subtract the projects total instances
+			new_quota = baseline_quotas[project].__minus__(resources)
+			print "new_quotas values set to: ", new_quota, "\n"
+			# add the new quotas for this project to the return dictionary.
+			new_quotas[project] = new_quota
 			zoneManager.set_quota(zone, baseline_quotas[project], new_quotas[project])
 			if new_quotas[project].is_over_quota():
 				zoneManager.email(zone, new_quotas[project])
