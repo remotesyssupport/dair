@@ -291,13 +291,13 @@ class ZoneQueryManager:
 			computed_quota.__normalize__()
 		# ssh -o StrictHostKeyChecking=no ADDRESS "nova-manage project quota PROJECT gigabytes QUOTA_GIGABYTES"
 		# get the current quota
-		euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + computed_quota.get_project_name() + "\""
-		current_quotas = self.__execute_nova__(euca_cmd)
-		print "euca_cmd results nova-manage: ",current_quotas, "\n"
+		#euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + computed_quota.get_project_name() + "\""
+		#current_quotas = self.__execute_nova__(euca_cmd)
+		#print "euca_cmd results nova-manage: ",current_quotas, "\n"
 		#current_quota = computed_quota.__clone__()
-		print ">",computed_quota
-		computed_quota.set_current_values(current_quotas)
-		print ">>",computed_quota
+		#print ">",computed_quota
+		#computed_quota.set_current_values(current_quotas)
+		#print ">>",computed_quota
 		# this will flag all the differences between current quotas and calculated quotas.
 		#current_quota.set_current_values(current_quotas)
 		# if there is no change in the quotas 
@@ -399,10 +399,7 @@ class ZoneQueryManager:
 			resources = other_zones_resources.get_resources(project)
 			# for each project in this zone subtract the projects total instances
 			new_quota = baseline_quotas[project].__minus__(resources)
-			# new_quota will have negative values 
-			#if new_quota.is_over_quota():
-				# Don't set a quota to a negative value but signal to email.
-				#new_quota.__normalize__()
+			print "new_quotas values set to: ", new_quota, "\n"
 			# add the new quotas for this project to the return dictionary.
 			new_quotas[project] = new_quota
 		return new_quotas
