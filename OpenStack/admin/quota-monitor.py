@@ -250,9 +250,9 @@ class ZoneQueryManager:
 		#print ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_GIGABYTES + sql_cmd_suffix
 		#print cmd_result
 		result_dict = self.__parse_query_result__(cmd_result)
-		print "Query produced: ", result_dict
+		#print "Query produced: ", result_dict
 		zone_project_instances.set_instance_count_per_project(Quota.I, result_dict)
-		print zone_project_instances.get_resources("nisbet")
+		print "zone instances: ", zone_project_instances.get_resources("nisbet"), "\n\n"
 		
 		#print ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_VOLUMES + sql_cmd_suffix
 		cmd_result = self.__execute_nova__(ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_VOLUMES + sql_cmd_suffix)
@@ -302,7 +302,7 @@ class ZoneQueryManager:
 			print "no change required"
 			return # no change required
 			
-		print "=> here now...", current_quota.get_changed_quotas()
+		print "=> here now in zone " + zone, current_quota.get_changed_quotas()
 		for quota_name in current_quota.get_changed_quotas():
 			euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + computed_quota.get_project_name() + " " + quota_name + " " + str(computed_quota.get_quota(quota_name)) + "\""
 			results = self.__execute_nova__(euca_cmd)
@@ -840,7 +840,7 @@ def read_baseline_quota_file(file_name=GSTD_QUOTA_FILE):
 			name = None
 			try:
 				###
-				print "values read from file: ", read_values
+				#print "values read from file: ", read_values
 				name = project_quota.set_values(read_values)
 			except:
 				log = QuotaLogger()
