@@ -252,7 +252,7 @@ class ZoneQueryManager:
 		result_dict = self.__parse_query_result__(cmd_result)
 		#print "Query produced: ", result_dict
 		zone_project_instances.set_instance_count_per_project(Quota.I, result_dict)
-		print "zone instances: ", zone_project_instances.get_resources("nisbet"), "\n\n"
+		print "zone instances for nisbet: ", zone_project_instances.get_resources("nisbet"), "\n\n"
 		
 		#print ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_VOLUMES + sql_cmd_suffix
 		cmd_result = self.__execute_nova__(ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_VOLUMES + sql_cmd_suffix)
@@ -269,7 +269,7 @@ class ZoneQueryManager:
 		"""Sets a quota for a project in a secific zone."""
 		address = self.regions[zone]
 		# here we reset all quotas to their baselines.
-		print "baseline_quota contains: ", baseline_quota
+		#print "baseline_quota contains: ", baseline_quota
 		if computed_quota == None:
 			
 			for quota_name in baseline_quota.get_changed_quotas(True):
@@ -305,12 +305,12 @@ class ZoneQueryManager:
 		#	print "no change required"
 		#	return # no change required
 			
-		print "=> here now in zone " + zone, computed_quota.get_changed_quotas()
+		#print "=> here now in zone " + zone, computed_quota.get_changed_quotas()
 		#for quota_name in current_quota.get_changed_quotas():
 		for quota_name in computed_quota.get_changed_quotas():
 			euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + computed_quota.get_project_name() + " " + quota_name + " " + str(computed_quota.get_quota(quota_name)) + "\""
 			results = self.__execute_nova__(euca_cmd)
-			print results
+			#print results
 			if self.__is_successful__(quota_name, computed_quota.get_quota(quota_name), results) == False:
 				log = QuotaLogger()
 				log.error("failed to set '" + quota_name + "' for " + computed_quota.get_project_name() + " in zone " + zone)
@@ -360,9 +360,11 @@ class ZoneQueryManager:
 		other_zones_resources = ZoneInstance()
 		for z in self.regions.keys():
 			if z == zone:
+				print "skipping " + z
 				continue
 			else:
 				other_zones_resources.__sum__(self.instances[z]) # add the project quotas from the other snapshot(s)
+				print "adding: ", other_zones_resources
 		return other_zones_resources
 		
 	def compute_zone_quotas(self, baseline_quotas, other_zones_resources):
