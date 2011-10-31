@@ -1008,6 +1008,7 @@ def balance_quotas():
 		for project in baseline_quotas.keys():
 			# if the zone doesn't have a project by that name returns a zero-ed quota.
 			resources = other_zones_resources.get_resources(project)
+			print "resources values set to: ", resources, "\n"
 			# for each project in this zone subtract the projects total instances
 			new_quota = baseline_quotas[project].__minus__(resources)
 			print "new_quotas values set to: ", new_quota, "\n"
