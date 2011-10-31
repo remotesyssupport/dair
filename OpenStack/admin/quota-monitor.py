@@ -298,9 +298,9 @@ class ZoneQueryManager:
 		# this will flag all the differences between current quotas and calculated quotas.
 		current_quota.set_current_values(results)
 		# if there is no change in the quotas 
-		if computed_quota.compare(current_quota) == 0:
-			print "no change required"
-			return # no change required
+		#if computed_quota.compare(current_quota) == 0:
+		#	print "no change required"
+		#	return # no change required
 			
 		print "=> here now in zone " + zone, current_quota.get_changed_quotas()
 		for quota_name in current_quota.get_changed_quotas():
