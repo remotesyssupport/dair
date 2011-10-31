@@ -24,9 +24,9 @@ app = web.application(urls, globals())
 with open(NOVA_CONF, 'r') as f:
 	for line in f:
 		if line.startswith('--sql_connection'):
-			db_addr = line.strip().split('=', 1)[1]
+			db_url = line.strip().split('=', 1)[1]
 
-conn = sqlalchemy.create_engine(db_addr).connect()
+conn = sqlalchemy.create_engine(db_url).connect()
 
 @atexit.register
 def cleanup():
