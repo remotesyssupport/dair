@@ -294,16 +294,18 @@ class ZoneQueryManager:
 		euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + computed_quota.get_project_name() + "\""
 		results = self.__execute_nova__(euca_cmd)
 		print "euca_cmd results nova-manage: ",results
-		current_quota = computed_quota.__clone__()
+		#current_quota = computed_quota.__clone__()
+		computed_quota = set_current_values(results)
 		# this will flag all the differences between current quotas and calculated quotas.
-		current_quota.set_current_values(results)
+		#current_quota.set_current_values(results)
 		# if there is no change in the quotas 
 		#if computed_quota.compare(current_quota) == 0:
 		#	print "no change required"
 		#	return # no change required
 			
 		print "=> here now in zone " + zone, computed_quota.get_changed_quotas()
-		for quota_name in current_quota.get_changed_quotas():
+		#for quota_name in current_quota.get_changed_quotas():
+		for quota_name in computed_quota.get_changed_quotas():
 			euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + computed_quota.get_project_name() + " " + quota_name + " " + str(computed_quota.get_quota(quota_name)) + "\""
 			results = self.__execute_nova__(euca_cmd)
 			print results
@@ -672,6 +674,7 @@ class Quota:
 		>>> q.get_exceeded()
 		'metadata_items, '
 		"""
+		# Mark as an exceeded quota for reporting purposes.
 		if value < 0 and self.exceeded.__contains__(name) == False:
 			self.exceeded.append(name)
 		# if this quota marks a change in a quota's value that needs to be
