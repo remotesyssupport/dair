@@ -1012,8 +1012,8 @@ def balance_quotas():
 			new_quota = baseline_quotas[project].__minus__(resources)
 			print "new_quotas values set to: ", new_quota, "\n"
 			# add the new quotas for this project to the return dictionary.
-			new_quotas[project] = new_quota
-			zoneManager.set_quota(zone, baseline_quotas[project], new_quotas[project])
+			#new_quotas[project] = new_quota
+			zoneManager.set_quota(zone, baseline_quotas[project], new_quota)
 			if new_quotas[project].is_over_quota():
 				zoneManager.email(zone, new_quotas[project])
 		update_emailed_list(emailed_overquota_projects, new_quotas)
