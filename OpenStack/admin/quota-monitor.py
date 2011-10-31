@@ -564,8 +564,10 @@ class Quota:
 		'flags: -1, metadata_items: -1, gigabytes: -1, floating_ips: -1, instances: -1, volumes: -1, cores: -1'
 		"""
 		return_quota = self.__clone__()
+		print "return_quotas before: ", return_quota, "\n"
 		for key in self.quota.keys():
 			return_quota.set_quota(key, return_quota.get_quota(key) - quota.get_quota(key), True) # this can be a neg value.
+		print "return_quotas after: ", return_quota, "\n"
 		return return_quota
 		
 	def __clone__(self):
