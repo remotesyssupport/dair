@@ -127,6 +127,7 @@ class ZoneInstance:
 		'flags: 0, metadata_items: 0, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
 		"""
 		try:
+			print "found project " + project + "!!"
 			return self.instances[project]
 		except KeyError:
 			return Quota(project)
