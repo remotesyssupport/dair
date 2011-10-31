@@ -275,9 +275,9 @@ class ZoneQueryManager:
 			for quota_name in baseline_quota.get_changed_quotas(True):
 				euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + baseline_quota.get_project_name() + " " + quota_name + " " + str(baseline_quota.get_quota(quota_name)) + "\""
 				results = self.__execute_nova__(euca_cmd)
-				print "setting " + quota_name + " to " + str(baseline_quota.get_quota(quota_name))
-				print "with: " + euca_cmd
-				print "reset results: ", results
+				#print "setting " + quota_name + " to " + str(baseline_quota.get_quota(quota_name))
+				#print "with: " + euca_cmd
+				#print "reset results: ", results
 				if self.__is_successful__(quota_name, baseline_quota.get_quota(quota_name), results) == False:
 					log = QuotaLogger()
 					log.error("failed to set '" + quota_name + "' for " + baseline_quota.get_project_name() + " in zone " + zone)
@@ -1000,7 +1000,7 @@ def balance_quotas():
 	for zone in zoneManager.get_zones():
 		# given a specific zone, what resources are being used in other zones?
 		other_zones_resources = zoneManager.get_other_zones_current_resources(zone)
-		print "in zone " + zone, other_zones_resources, "\n"
+		print "in zone other resources" + zone, other_zones_resources.get_resources('nisbet'), "\n"
 		# new_quotas will have quotas for all projects in this zone.
 		new_quotas = zoneManager.compute_zone_quotas(baseline_quotas, other_zones_resources)
 		for project in new_quotas.keys():
