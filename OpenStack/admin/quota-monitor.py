@@ -565,6 +565,7 @@ class Quota:
 		"""
 		return_quota = self.__clone__()
 		print "return_quotas before: ", return_quota, "\n"
+		print "quota arg contains: ", quota, "\n"
 		for key in self.quota.keys():
 			return_quota.set_quota(key, return_quota.get_quota(key) - quota.get_quota(key), True) # this can be a neg value.
 		print "return_quotas after: ", return_quota, "\n"
