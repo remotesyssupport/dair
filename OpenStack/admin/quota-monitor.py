@@ -1008,10 +1008,10 @@ def balance_quotas():
 		for project in baseline_quotas.keys():
 			# if the zone doesn't have a project by that name returns a zero-ed quota.
 			resources = other_zones_resources.get_resources(project)
-			print "in zone other resources for nisbet: " + zone + " ", other_zones_resources.get_resources('nisbet'), "\n"
+			print "in zone other resources for nisbet: " + zone + " ", other_zones_resources.get_resources(project), "\n"
 			print "resources values set to: ", resources, "\n"
 			# for each project in this zone subtract the projects total instances
-			new_quota = baseline_quotas[project].__minus__(resources)
+			new_quota = baseline_quotas[project].__minus__(other_zones_resources.get_resources(project))
 			print "new_quotas values set to: ", new_quota, "\n"
 			# add the new quotas for this project to the return dictionary.
 			#new_quotas[project] = new_quota
