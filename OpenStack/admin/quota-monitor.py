@@ -73,7 +73,6 @@ class ZoneInstance:
 		for project in project_count:
 			project_instance = Quota(project)
 			try:
-				print ">>>> project instances saved by::: " + project
 				project_instance = self.instances[project]
 			except KeyError: # no instances for this project logged yet.
 				pass
@@ -128,7 +127,6 @@ class ZoneInstance:
 		'flags: 0, metadata_items: 0, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
 		"""
 		try:
-			print "found project " + project + "!!"
 			return self.instances[project]
 		except KeyError:
 			return Quota(project)
@@ -186,6 +184,7 @@ class ZoneQueryManager:
 		return process.communicate()[0]
 		
 	######################################################
+	# code snippet comes from the utils bundle package but does not work with regular unix shell commands.
 	def __execute_nova__(self, cmd, process_input=None, addl_env=None, check_exit_code=True, attempts=1):
 		while attempts > 0:
 			attempts -= 1
@@ -239,28 +238,21 @@ class ZoneQueryManager:
 		cmd_result = self.__execute_nova__(ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_GIGABYTES + sql_cmd_suffix)
 		result_dict = self.__parse_query_result__(cmd_result)
 		zone_project_instances.set_instance_count_per_project(Quota.G, result_dict)
-		
-		
+			
 		#print ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_FLOAT_IPS + sql_cmd_suffix
 		cmd_result = self.__execute_nova__(ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_FLOAT_IPS + sql_cmd_suffix)
 		result_dict = self.__parse_query_result__(cmd_result)
 		zone_project_instances.set_instance_count_per_project(Quota.F, result_dict)
 		
-		
 		#print ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_INSTANCES + sql_cmd_suffix
 		cmd_result = self.__execute_nova__(ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_INSTANCES + sql_cmd_suffix)
-		#print ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_GIGABYTES + sql_cmd_suffix
-		#print cmd_result
 		result_dict = self.__parse_query_result__(cmd_result)
-		#print "Query produced: ", result_dict
 		zone_project_instances.set_instance_count_per_project(Quota.I, result_dict)
-		print "zone instances for nisbet: ", zone_project_instances.get_resources("nisbet"), "\n\n"
 		
 		#print ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_VOLUMES + sql_cmd_suffix
 		cmd_result = self.__execute_nova__(ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_VOLUMES + sql_cmd_suffix)
 		result_dict = self.__parse_query_result__(cmd_result)
 		zone_project_instances.set_instance_count_per_project(Quota.V, result_dict)
-		
 		
 		#print ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_CPUS + sql_cmd_suffix
 		cmd_result = self.__execute_nova__(ssh_cmd + sql_cmd_prefix + self.Q_PROJECT_CPUS + sql_cmd_suffix)
@@ -271,15 +263,11 @@ class ZoneQueryManager:
 		"""Sets a quota for a project in a secific zone."""
 		address = self.regions[zone]
 		# here we reset all quotas to their baselines.
-		#print "baseline_quota contains: ", baseline_quota
 		if computed_quota == None:
-			
+			print "baseline_quota contains: ", baseline_quota
 			for quota_name in baseline_quota.get_changed_quotas(True):
 				euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + baseline_quota.get_project_name() + " " + quota_name + " " + str(baseline_quota.get_quota(quota_name)) + "\""
 				results = self.__execute_nova__(euca_cmd)
-				#print "setting " + quota_name + " to " + str(baseline_quota.get_quota(quota_name))
-				#print "with: " + euca_cmd
-				#print "reset results: ", results
 				if self.__is_successful__(quota_name, baseline_quota.get_quota(quota_name), results) == False:
 					log = QuotaLogger()
 					log.error("failed to set '" + quota_name + "' for " + baseline_quota.get_project_name() + " in zone " + zone)
@@ -291,28 +279,10 @@ class ZoneQueryManager:
 		# It could be a negative number but we shouldn't set a quota to a negative value. 
 		if computed_quota.is_over_quota():
 			computed_quota.__normalize__()
-		# ssh -o StrictHostKeyChecking=no ADDRESS "nova-manage project quota PROJECT gigabytes QUOTA_GIGABYTES"
-		# get the current quota
-		#euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + computed_quota.get_project_name() + "\""
-		#current_quotas = self.__execute_nova__(euca_cmd)
-		#print "euca_cmd results nova-manage: ",current_quotas, "\n"
-		#current_quota = computed_quota.__clone__()
-		#print ">",computed_quota
-		#computed_quota.set_current_values(current_quotas)
-		#print ">>",computed_quota
-		# this will flag all the differences between current quotas and calculated quotas.
-		#current_quota.set_current_values(current_quotas)
-		# if there is no change in the quotas 
-		#if computed_quota.compare(current_quota) == 0:
-		#	print "no change required"
-		#	return # no change required
-			
-		#print "=> here now in zone " + zone, computed_quota.get_changed_quotas()
-		#for quota_name in current_quota.get_changed_quotas():
+		
 		for quota_name in computed_quota.get_changed_quotas():
 			euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + computed_quota.get_project_name() + " " + quota_name + " " + str(computed_quota.get_quota(quota_name)) + "\""
 			results = self.__execute_nova__(euca_cmd)
-			#print results
 			if self.__is_successful__(quota_name, computed_quota.get_quota(quota_name), results) == False:
 				log = QuotaLogger()
 				log.error("failed to set '" + quota_name + "' for " + computed_quota.get_project_name() + " in zone " + zone)
@@ -362,51 +332,12 @@ class ZoneQueryManager:
 		other_zones_resources = ZoneInstance()
 		for z in self.regions.keys():
 			if z == zone:
-				print "skipping " + z
+				#print "skipping " + z
 				continue
 			else:
 				other_zones_resources.__sum__(self.instances[z]) # add the project quotas from the other snapshot(s)
-				print "adding: ", other_zones_resources
+				#print "adding: resources from zone " + z
 		return other_zones_resources
-		
-	def compute_zone_quotas(self, baseline_quotas, other_zones_resources):
-		"""
-		Given a zone and baseline quotas for a project returns baseline_quotas 
-		ZoneInstance object with modified quota values.
-		param zone: the target zone to set quotas for
-		param baseline_quotas: the quotas a project is entitled to, will be 
-		modified to new permitted quotas for a zone.
-		param other_zone_resources: a ZoneInstance with all the other zones in-use
-		resources aggregated.
-		return: ZoneInstance object with new quotas.
-		>>> zqm = ZoneQueryManager()
-		>>> table = "project_id	sum(size)\\nproject_b	2\\nproject_a	9\\n"
-		>>> resources = zqm.__parse_query_result__(table)
-		>>> other_zi = ZoneInstance()
-		>>> other_zi.set_instance_count_per_project(Quota.M, resources)
-		>>> quotas = {}
-		>>> quota_a = Quota('project_a', 0, 10, 0, 0, 0, 0, 0);
-		>>> quota_b = Quota('project_b', 0, -1, 0, 0, 0, 0, 0);
-		>>> quotas['project_a'] = quota_a
-		>>> print quota_a
-		'flags: 0, metadata_items: 10, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
-		>>> quotas['project_b'] = quota_b
-		>>> new_quotas = zqm.compute_zone_quotas(quotas, other_zi)
-		>>> print new_quotas['project_a']
-		'flags: 0, metadata_items: 10, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
-		>>> print new_quotas['project_b'] # project_b is now over quota.
-		'flags: 0, metadata_items: -1, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
-		"""
-		new_quotas = {}
-		for project in baseline_quotas.keys():
-			# if the zone doesn't have a project by that name returns a zero-ed quota.
-			resources = other_zones_resources.get_resources(project)
-			# for each project in this zone subtract the projects total instances
-			new_quota = baseline_quotas[project].__minus__(resources)
-			print "new_quotas values set to: ", new_quota, "\n"
-			# add the new quotas for this project to the return dictionary.
-			new_quotas[project] = new_quota
-		return new_quotas
 		
 	def __parse_query_result__(self, table):
 		""" 
@@ -470,7 +401,6 @@ class ZoneQueryManager:
 			for contact in project_stakeholders:
 				cmd = 'echo \"' + body + '\" | mail -s \"' + subject + '\" ' + contact
 				#print cmd
-				### PRODUCTION CODE ###
 				self.__execute_shell__(cmd)
 				# set the emailed flag.
 				quota.set_quota(Quota.fl, (quota.get_quota(Quota.fl) | Quota.EMAILED))
@@ -568,11 +498,8 @@ class Quota:
 		'flags: -1, metadata_items: -1, gigabytes: -1, floating_ips: -1, instances: -1, volumes: -1, cores: -1'
 		"""
 		return_quota = self.__clone__()
-		#print "return_quotas before: ", return_quota, "\n"
-		print "quota arg contains: ", quota, "\n"
-		for key in self.quota.keys():
-			return_quota.set_quota(key, return_quota.get_quota(key) - quota.get_quota(key), True) # this can be a neg value.
-		print "return_quotas after: ", return_quota, "\n"
+		for key in self.quota.keys(): # TODO fix me so I set changed values only when necessary.
+			return_quota.set_quota(key, return_quota.get_quota(key) - quota.get_quota(key), True)
 		return return_quota
 		
 	def __clone__(self):
@@ -780,6 +707,9 @@ class Quota:
 		>>> q = Quota('binky')
 		>>> print q.get_project_name()
 		binky
+		>>> q = Quota('binky a.b@c.com')
+		>>> print q.get_project_name()
+		binky
 		"""
 		return self.project.split()[0]
 		
@@ -919,53 +849,46 @@ def write_emailed_list(emailed_dict, file_name=DELINQUENT_FILE):
 	finally:
 		f.close()
 		
-def update_emailed_list(emailed_overquota_projects, new_quotas):
+def update_emailed_list(emailed_overquota_projects, quota):
 	"""Function updates the dictionary of emailed users with any quotas that have gone over.
-	>>> quotas = {}
 	>>> elist = {}
-	>>> update_emailed_list(elist, quotas)
+	>>> b = Quota( 'project_b', 0, 0, 0, 0, 0, 0, 0)
+	>>> update_emailed_list(elist, b)
 	>>> print elist
 	{}
-	>>> elist['project_a'] = 1
-	>>> update_emailed_list(elist, quotas)
-	>>> print elist
-	{'project_a': 1}
-	>>> quotas['project_b'] = Quota( 'project_b', 0, 0, 0, 0, 0, 0, 0)
-	>>> update_emailed_list(elist, quotas)
-	>>> print elist
-	{'project_a': 1}
-	>>> quotas['project_b'] = Quota( 'project_b', 2, 0, 0, 0, 0, 0, 0) # quota was normalized
-	>>> update_emailed_list(elist, quotas)
-	>>> print elist
-	{'project_b': 1, 'project_a': 1}
-	>>> quotas['project_a'] = Quota('project_a', 0, -10, 0, 0, 0, 0, 0)
-	>>> quotas['project_b'] = Quota( 'project_b', 1, -1, 0, 0, 0, 0, 0)
-	>>> update_emailed_list(elist, quotas)
-	>>> print elist
-	{'project_b': 1, 'project_a': 1}
-	>>> quotas['project_a'] = Quota('project_a', 0, 10, 0, 0, 0, 0, 0) # back under quota...
-	>>> update_emailed_list(elist, quotas)
+	>>> b = Quota( 'project_b', 2, 0, 0, 0, 0, 0, 0) # quota was normalized
+	>>> update_emailed_list(elist, b)
 	>>> print elist
 	{'project_b': 1}
-	>>> quotas['project_b'] = Quota('project_a', 0, 1, 0, 0, 0, 0, 0) # back under quota...
-	>>> update_emailed_list(elist, quotas)
+	>>> a = Quota('project_a', 0, -10, 0, 0, 0, 0, 0)
+	>>> print a.is_over_quota()
+	True
+	>>> b = Quota( 'project_b', 1, -1, 0, 0, 0, 0, 0)
+	>>> update_emailed_list(elist, a)
+	>>> print elist
+	{'project_b': 1, 'project_a': 1}
+	>>> update_emailed_list(elist, b)
+	>>> print elist
+	{'project_b': 1, 'project_a': 1}
+	>>> a = Quota('project_a', 0, 10, 0, 0, 0, 0, 0) # back under quota...
+	>>> update_emailed_list(elist, a)
+	>>> print elist
+	{'project_b': 1}
+	>>> b = Quota('project_b', 0, 1, 0, 0, 0, 0, 0) # back under quota...
+	>>> update_emailed_list(elist, b)
 	>>> print elist
 	{}
 	"""
-	# iterate over the new_quotas and add update the emailed
-	for project in new_quotas.keys():
-		# if the project is over quota add it to the list.
-		if new_quotas[project].get_quota(Quota.fl) & Quota.OVER_QUOTA == Quota.OVER_QUOTA:
-			emailed_overquota_projects[project] = 1
-		# if the project is over and the stakeholder has been emailed add to the list.
-		if new_quotas[project].get_quota(Quota.fl) & Quota.EMAILED == Quota.EMAILED:
-			emailed_overquota_projects[project] = 1
-		if new_quotas[project].is_over_quota() == False: # take them off the list
-			# note that when they go over again they will get a new email.
-			try:
-				del emailed_overquota_projects[project]
-			except KeyError:
-				pass # there was no key so you can't delete it
+
+	# if the project is over quota add it to the list.
+	if quota.get_quota(Quota.fl) > 0 or quota.is_over_quota():
+		emailed_overquota_projects[quota.get_project_name()] = 1
+	else:
+		# note that when they go over again they will get a new email.
+		try:
+			del emailed_overquota_projects[quota.get_project_name()]
+		except KeyError:
+			pass # there was no key so you can't delete it
 		
 # There has to be a way to reset the quotas to the baseline for all groups 
 # in the case that there is a problem and the quotas get out of synch.
@@ -1004,23 +927,18 @@ def balance_quotas():
 	for zone in zoneManager.get_zones():
 		# given a specific zone, what resources are being used in other zones?
 		other_zones_resources = zoneManager.get_other_zones_current_resources(zone)
-		
 		# new_quotas will have quotas for all projects in this zone.
-		#new_quotas = zoneManager.compute_zone_quotas(baseline_quotas, other_zones_resources)
 		for project in baseline_quotas.keys():
 			# if the zone doesn't have a project by that name returns a zero-ed quota.
 			resources = other_zones_resources.get_resources(project)
-			print "in zone other resources for nisbet: " + zone + " ", other_zones_resources.get_resources(project), "\n"
-			print "resources values set to: ", resources, "\n"
+			#print "in zone other resources for nisbet: " + zone + " ", other_zones_resources.get_resources(project), "\n"
 			# for each project in this zone subtract the projects total instances
 			new_quota = baseline_quotas[project].__minus__(other_zones_resources.get_resources(project))
-			print "new_quotas values set to: ", new_quota, "\n"
-			# add the new quotas for this project to the return dictionary.
-			#new_quotas[project] = new_quota
 			zoneManager.set_quota(zone, baseline_quotas[project], new_quota)
-			#if new_quota.is_over_quota(): # TODO fix so we don't need a dictionary of quotas (new_quotas)'
-			#	zoneManager.email(zone, new_quota)
-		#update_emailed_list(emailed_overquota_projects, new_quotas)
+			if new_quota.is_over_quota(): # TODO fix so we don't need a dictionary of quotas (new_quotas)'
+				zoneManager.email(zone, new_quota)
+				# this stops the user from getting emails every time the quota monitor runs.
+				update_emailed_list(emailed_overquota_projects, new_quota)
 	write_emailed_list(emailed_overquota_projects)
 	return 0
 
