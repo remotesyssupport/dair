@@ -73,6 +73,7 @@ class ZoneInstance:
 		for project in project_count:
 			project_instance = Quota(project)
 			try:
+				print ">>>> project instances saved by::: " + project
 				project_instance = self.instances[project]
 			except KeyError: # no instances for this project logged yet.
 				pass
@@ -856,7 +857,7 @@ def read_baseline_quota_file(file_name=GSTD_QUOTA_FILE):
 				log.error(msg)
 				raise QuotaException(msg)
 			# save the project's quotas from file
-			quotas[name] = project_quota
+			quotas[project_quota.get_project_name()] = project_quota
 		#print quotas
 	return quotas
 	
