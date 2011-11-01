@@ -25,6 +25,7 @@ DELINQUENT_FILE = APP_DIR + "Quota-monitor_scratch.tmp" # list of delinquent pro
 ### PRODUCTION CODE ###
 #NOVA_CONF = "/home/cybera/dev/nova.conf" # nova.conf -- change for production.
 NOVA_CONF = "/etc/nova/nova.conf" # nova.conf
+AUDIT = False
 
 class ProcessExecutionError(IOError):
     def __init__(self, stdout=None, stderr=None, exit_code=None, cmd=None, description=None):
@@ -259,9 +260,14 @@ class ZoneQueryManager:
 		result_dict = self.__parse_query_result__(cmd_result)
 		zone_project_instances.set_instance_count_per_project(Quota.C, result_dict)
 		
-	def set_quota(self, zone, baseline_quota, computed_quota=None):
+	def set_quota(self, zone, baseline_quota, computed_quota=None, audit=False):
 		"""Sets a quota for a project in a secific zone."""
 		address = self.regions[zone]
+		audit_results_before = ""
+		if audit: # collect the current quota setting later we will compare to what we set it to.
+			euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + baseline_quota.get_project_name() + "\""
+			audit_results_before = self.__execute_nova__(euca_cmd)
+			
 		# here we reset all quotas to their baselines.
 		if computed_quota == None:
 			print "baseline_quota for " + baseline_quota.get_project_name() + ": ", baseline_quota
@@ -271,21 +277,27 @@ class ZoneQueryManager:
 				if self.__is_successful__(quota_name, baseline_quota.get_quota(quota_name), results) == False:
 					log = QuotaLogger()
 					log.error("failed to set '" + quota_name + "' for " + baseline_quota.get_project_name() + " in zone " + zone)
-			return # just baselines set.
+		else:
+			# ensure that we don't set negative quota values by normalizing the quota.
+			# I do this because we have computed the project's allowed resources - the instances running
+			# It could be a negative number but we shouldn't set a quota to a negative value. 
+			if computed_quota.is_over_quota():
+				computed_quota.__normalize__()
 			
-			
-		# ensure that we don't set negative quota values by normalizing the quota.
-		# I do this because we have computed the project's allowed resources - the instances running
-		# It could be a negative number but we shouldn't set a quota to a negative value. 
-		if computed_quota.is_over_quota():
-			computed_quota.__normalize__()
-		
-		for quota_name in computed_quota.get_changed_quotas():
-			euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + computed_quota.get_project_name() + " " + quota_name + " " + str(computed_quota.get_quota(quota_name)) + "\""
-			results = self.__execute_nova__(euca_cmd)
-			if self.__is_successful__(quota_name, computed_quota.get_quota(quota_name), results) == False:
+			for quota_name in computed_quota.get_changed_quotas():
+				euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + computed_quota.get_project_name() + " " + quota_name + " " + str(computed_quota.get_quota(quota_name)) + "\""
+				results = self.__execute_nova__(euca_cmd)
+				if self.__is_successful__(quota_name, computed_quota.get_quota(quota_name), results) == False:
+					log = QuotaLogger()
+					log.error("failed to set '" + quota_name + "' for " + computed_quota.get_project_name() + " in zone " + zone)
+					
+		# now check if setting the quotas worked.
+		if audit: # collect the current quota setting later we will compare to what we set it to.
+			euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + baseline_quota.get_project_name() + "\""
+			audit_results_after = self.__execute_nova__(euca_cmd)
+			if audit_results_before == audit_results_after:
 				log = QuotaLogger()
-				log.error("failed to set '" + quota_name + "' for " + computed_quota.get_project_name() + " in zone " + zone)
+				log.error("quotas have not changed for " + computed_quota.get_project_name() + " in zone " + zone)
 		
 	def __is_successful__(self, quota_name, expected, results):
 		"""Returns True if the command successfully fired and false otherwise.
@@ -945,7 +957,7 @@ def balance_quotas():
 
 def usage():
 	return """
-Usage: quota-monitor.py -[b|h|r], --help, --reset
+Usage: quota-monitor.py [-a, --audit] -[b|h|r], --help, --reset, --balance
 
     This script is meant to be run routinely by cron to check and 
     balance quotas over zones in OpenStack.
@@ -966,7 +978,10 @@ Usage: quota-monitor.py -[b|h|r], --help, --reset
     -h, --help prints this message and exits with status 1.
     -r, --reset resets the quotas to the original values set in the
 		./baseline_quotas.txt file.
-    -b, balances the quotas over the projects by zone.
+    -b, --balance balances the quotas over the projects by zone.
+    -a, --audit compares before and after quota setting and if the
+		two results are the same writes an error message to log.
+		This functionality takes longer to perform.
 """
 	
 class QuotaException:
@@ -979,7 +994,7 @@ class QuotaException:
 def main():
     # parse command line options
 	try:
-		opts, args = getopt.getopt(sys.argv[1:], "hrb", ["help","reset","balance"])
+		opts, args = getopt.getopt(sys.argv[1:], "ahrb", ["audit", "help","reset","balance"])
 	except getopt.GetoptError, err:
 		print str(err)
 		print usage()
@@ -994,6 +1009,9 @@ def main():
 			return reset_quotas()
 		elif o in ("-b", "--balance"):
 			return balance_quotas()
+		elif o in ("-a", "--audit"):
+			print "setting auditing on."
+			AUDIT = True
 		else:
 			assert False, "unimplemented option '" + o + "'"
 
