@@ -6,6 +6,7 @@
 
 
 NOVA_CONF='/etc/nova/nova.conf'
+QUOTA_CFG="/root/dair/OpenStack/admin/baseline_quotas.cfg"
 
 
 if [[ $EUID -ne 0 ]]; then
@@ -129,6 +130,15 @@ nova-manage project scrub $PROJECT
 echo "Deleting project admin..."
 nova-manage user delete $ADMIN
 $VENV $MANAGE deleteuser --username=$ADMIN --noinput
+
+if [ -s "$QUOTA_CFG" ]
+then
+  echo "deleting $PROJECT from $QUOTA_CFG."
+  # delete the line with project name in it from the cfg and save.
+  (echo "g/${PROJECT}/d"; echo 'wq') | ex -s $QUOTA_CFG
+else
+  echo "$QUOTA_CFG not found. Manually delete or comment out this project's quotas."
+fi
 
 echo "Project $PROJECT deleted."
 
