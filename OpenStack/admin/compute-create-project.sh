@@ -5,6 +5,7 @@ LOG="$LOG_DIR/compute-create-project.log"
 ERR="$LOG_DIR/compute-create-project-error.log"
 VENV="/usr/local/openstack-dashboard/dair/openstack-dashboard/tools/with_venv.sh"
 MANAGE="/usr/local/openstack-dashboard/dair/openstack-dashboard/dashboard/manage.py"
+QUOTA_CFG="/root/dair/OpenStack/admin/baseline_quotas.cfg"
 
 set -o nounset
 
@@ -136,6 +137,15 @@ for REGION in $REGION_LIST; do
 	ssh -o StrictHostKeyChecking=no $ADDRESS "nova-manage project quota ${PROJECT} cores ${QUOTA_CORES}" 1>>$LOG 2>>$ERR
 done
 
+# Add entry to baseline_quota.cfg so quota monitor will keep it updated.
+if [ -s "$QUOTA_CFG" ]
+then
+  echo "adding $PROJECT to $QUOTA_CFG."
+  echo "project=$PROJECT $EMAIL, gigabytes=$QUOTA_GIGABYTES, floating_ips=$QUOTA_FLOATING_IPS, instances=$QUOTA_INSTANCES, volumes=$QUOTA_VOLUMES, cores=$QUOTA_CORES" >> "$QUOTA_CFG"
+else
+  echo "$QUOTA_CFG not found. Manually enter this project's quotas so they can be balanced."
+  echo "project=$PROJECT $EMAIL, gigabytes=$QUOTA_GIGABYTES, floating_ips=$QUOTA_FLOATING_IPS, instances=$QUOTA_INSTANCES, volumes=$QUOTA_VOLUMES, cores=$QUOTA_CORES"
+fi
 
 log "Done.  Congratulations!"
 log "Please review '$LOG' and '$ERR' for more details"
