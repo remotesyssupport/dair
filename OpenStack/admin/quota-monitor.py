@@ -17,12 +17,10 @@ import subprocess	# for __execute_shell__()
 import logging		# for logging
 import os.path		# for file testing.
 
-### PRODUCTION CODE ###
 #APP_DIR = '/home/cybera/dev/dair/OpenStack/admin/'
 APP_DIR = '/root/dair/OpenStack/admin/'
 GSTD_QUOTA_FILE = APP_DIR + "baseline_quotas.cfg" # Gold standard quotas for baseline.
-DELINQUENT_FILE = APP_DIR + "Quota-monitor_scratch.tmp" # list of delinquent projects that HAVE been emailed.
-### PRODUCTION CODE ###
+DELINQUENT_FILE = APP_DIR + "/tmp/quota-monitor_emailed.tmp" # list of delinquent projects that HAVE been emailed.
 #NOVA_CONF = "/home/cybera/dev/nova.conf" # nova.conf -- change for production.
 NOVA_CONF = "/etc/nova/nova.conf" # nova.conf
 AUDIT = False
@@ -805,7 +803,7 @@ def read_emailed_list_file(file_name=DELINQUENT_FILE):
 	try:
 		f = open(file_name)
 	except:
-		return {} # no file or could not be opened.
+		return {} # no file or could not be opened, every new overquota will get an email.
 	
 	for line in f.readlines():
 		if line.strip() != "" and line[0] != "#": # empty lines # are commented lines.
