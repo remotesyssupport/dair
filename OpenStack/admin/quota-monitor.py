@@ -695,7 +695,7 @@ class Quota:
 				return True
 		return False
 		
-	def set_emailed(b):
+	def set_emailed(self, b):
 		self.emailed = b
 		
 	def get_exceeded(self):
