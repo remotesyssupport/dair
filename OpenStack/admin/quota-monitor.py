@@ -337,6 +337,12 @@ class ZoneQueryManager:
 		""" Returns the names of the regions collected from nova.conf. """
 		return self.regions.keys()
 		
+	def get_my_zones_resources(self, zone, project):
+		"""Returns the resouces being used by a project in the argument zone.
+		"""
+		instances_locally = self.instances[zone]
+		return instances_locally.get_resources(project)
+
 	def get_other_zones_current_resources(self, zone):
 		"""
 		Returns a ZoneInstance object of all projects in zones other
@@ -345,13 +351,12 @@ class ZoneQueryManager:
 		#other_zones_resources = zoneManager.get_other_zones_current_resources(zone)
 		other_zones_resources = ZoneInstance()
 		for z in self.regions.keys():
-			#if z == zone:
-			#	#print "skipping " + z
-			#	continue
-			#else:
-			#	other_zones_resources.__sum__(self.instances[z]) # add the project quotas from the other snapshot(s)
-			print "adding: resources from zone " + z
-			other_zones_resources.__sum__(self.instances[z]) # add the project quotas from the other snapshot(s)
+			if z == zone:
+				#print "skipping " + z
+				continue
+			else:
+				other_zones_resources.__sum__(self.instances[z]) # add the project quotas from the other snapshot(s)
+				#print "adding: resources from zone " + z
 		return other_zones_resources
 		
 	def __parse_query_result__(self, table):
@@ -513,8 +518,8 @@ class Quota:
 		"""
 		return_quota = self.__clone__()
 		for key in self.quota.keys():
-			print "quota.get_quota(key) ==>: " + key + "=" + str(quota.get_quota(key))
-			print "return_quota.get_quota(key) ==>: " + key + "=" + str(return_quota.get_quota(key))
+			#print "quota.get_quota(key) ==>: " + key + "=" + str(quota.get_quota(key))
+			#print "return_quota.get_quota(key) ==>: " + key + "=" + str(return_quota.get_quota(key))
 			return_quota.set_quota(key, return_quota.get_quota(key) - quota.get_quota(key))
 		
 		return return_quota
@@ -947,11 +952,14 @@ def balance_quotas():
 			print "for zone: " + zone
 			new_quota = baseline_quotas[project].__minus__(other_zones_resources.get_resources(project))
 			zoneManager.set_quota(zone, baseline_quotas[project], new_quota)
-			print "new_quota: ", new_quota, " is overquota? ", new_quota.is_over_quota()
-			if new_quota.is_over_quota():
-				zoneManager.email(zone, new_quota)
+			# now if we subtract the resources we are using in our own zone do we go over quota?
+			my_resources = zoneManager.get_my_zones_resources(zone, project)
+			total_usage = new_quota.__minus__(my_resources)
+			print "total_usage: ", total_usage, " is overquota? ", total_usage.is_over_quota()
+			if total_usage.is_over_quota():
+				zoneManager.email(zone, total_usage)
 				# this stops the user from getting emails every time the quota monitor runs.
-				update_emailed_list(emailed_overquota_projects, new_quota)
+				update_emailed_list(emailed_overquota_projects, total_usage)
 	write_emailed_list(emailed_overquota_projects)
 	return 0
 
