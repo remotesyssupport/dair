@@ -949,6 +949,7 @@ def balance_quotas():
 			# for each project in this zone subtract the projects total instances
 			new_quota = baseline_quotas[project].__minus__(other_zones_resources.get_resources(project))
 			zoneManager.set_quota(zone, baseline_quotas[project], new_quota)
+			print "new_quota: ", new_quota
 			if new_quota.is_over_quota():
 				zoneManager.email(zone, new_quota)
 				# this stops the user from getting emails every time the quota monitor runs.
