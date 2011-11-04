@@ -390,7 +390,7 @@ class ZoneQueryManager:
 			results[data[0]] = string.atoi(data[1]) # project_id = [0], value = [1]
 		return results
 		
-	def email(self, zone, quota):
+	def email(self, zone, quota, emailed_list):
 		"""Emails users in the address list the message in msg. The list of recipiants 
 		is mailed if the quota object has the EMAILED flag set to 0. 
 		This method will always mail unless the EMAILED flag is set.
@@ -412,20 +412,20 @@ class ZoneQueryManager:
 		#'metadata_items: 0, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
 		#"""
 		# in Unix: echo "Project x is overquota in zone y" | mail -s "Message from ROOT at Nova-ab" andrew.nisbet@cybera.ca
+		if emailed_list.has_key(quota.get_project_name()):
+			return;
 		subject = "Quota-Monitor: " + quota.get_project_name() + " over quota"
 		body = "Project " + quota.get_project_name() + " is overquota: " + quota.get_exceeded()
 		project_stakeholders = quota.get_contact()
 		if len(project_stakeholders) == 0:
+			log = QuotaLogger()
+			log.error("Project %s has no stakeholder email and they are over quota!" % (quota.get_project_name()))
 			return
-		if quota.is_emailed() == False: # The contacts haven't been emailed yet.
-			for contact in project_stakeholders:
-				cmd = 'echo \"' + body + '\" | mail -s \"' + subject + '\" ' + contact
-				print "email() => " + cmd
-				self.__execute_shell__(cmd)
-				# set the emailed flag.
-				quota.set_emailed(True)
-			return
-		
+
+		for contact in project_stakeholders:
+			cmd = 'echo \"' + body + '\" | mail -s \"' + subject + '\" ' + contact
+			print "email() => " + cmd
+			self.__execute_shell__(cmd)
 		
 # metadata_items: 128
 # gigabytes: 100
@@ -459,7 +459,6 @@ class Quota:
 		self.exceeded = []
 		self.changed_quotas = [] # names of quotas to be set by nova-manage.
 		self.project = name
-		self.emailed = False
 		self.over_quota = False
 		self.set_quota(Quota.M, meta)
 		self.set_quota(Quota.G, Gb)
@@ -539,7 +538,6 @@ class Quota:
 		for name in self.changed_quotas:
 			new_quota.changed_quotas.append(name) # names of quotas to be set by nova-manage.
 		new_quota.project = self.project
-		new_quota.emailed = self.emailed
 		new_quota.over_quota = self.over_quota
 		for key in self.quota.keys():
 			new_quota.set_quota(key, self.get_quota(key))
@@ -586,9 +584,6 @@ class Quota:
 		for key in self.quota.keys():
 			result += self.quota[key] - rh.get_quota(key)
 		return result
-		
-	def is_emailed(self):
-		return self.emailed
 	
 	# reads lines from a file and if the values are '=' separated it will assign the named quota the '=' value.
 	# WARNING: If the quota name is spelt incorrectly the default value is used.
@@ -696,9 +691,6 @@ class Quota:
 			if self.quota[key] < 0: # accounts for normalized quota
 				return True
 		return False
-		
-	def set_emailed(self, b):
-		self.emailed = b
 		
 	def get_exceeded(self):
 		"""Returns a list of quotas that have been exceeded. 
@@ -893,7 +885,6 @@ def update_emailed_list(emailed_overquota_projects, quota):
 	"""
 
 	# if the project is over quota add it to the list.
-	print "quota==> ", quota
 	if quota.is_over_quota():
 		emailed_overquota_projects[quota.get_project_name()] = 1
 		print "got here."
@@ -955,7 +946,7 @@ def balance_quotas():
 			my_resources = zoneManager.get_my_zones_resources(zone, project)
 			total_usage = new_quota.__minus__(my_resources)
 			if total_usage.is_over_quota():
-				zoneManager.email(zone, total_usage)
+				zoneManager.email(zone, total_usage, emailed_overquota_projects)
 				# this stops the user from getting emails every time the quota monitor runs.
 				update_emailed_list(emailed_overquota_projects, total_usage)
 	write_emailed_list(emailed_overquota_projects)
