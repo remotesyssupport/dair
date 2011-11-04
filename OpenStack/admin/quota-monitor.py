@@ -20,7 +20,7 @@ import os.path		# for file testing.
 #APP_DIR = '/home/cybera/dev/dair/OpenStack/admin/'
 APP_DIR = '/root/dair/OpenStack/admin/'
 GSTD_QUOTA_FILE = APP_DIR + "baseline_quotas.cfg" # Gold standard quotas for baseline.
-DELINQUENT_FILE = APP_DIR + "/tmp/quota-monitor_emailed.tmp" # list of delinquent projects that HAVE been emailed.
+DELINQUENT_FILE = APP_DIR + "/var/lib/quota-monitor/emailed.lst" # list of delinquent projects that HAVE been emailed.
 #NOVA_CONF = "/home/cybera/dev/nova.conf" # nova.conf -- change for production.
 NOVA_CONF = "/etc/nova/nova.conf" # nova.conf
 AUDIT = False
