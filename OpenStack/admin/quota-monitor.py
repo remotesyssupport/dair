@@ -408,7 +408,7 @@ class ZoneQueryManager:
 
 		for contact in project_stakeholders:
 			cmd = 'echo \"' + body + '\" | mail -s \"' + subject + '\" ' + contact
-			print "email() => " + cmd
+			#print "email() => " + cmd
 			self.__execute_nova__(cmd)
 		
 # metadata_items: 128
@@ -922,7 +922,7 @@ def balance_quotas():
 			resources = other_zones_resources.get_resources(project)
 			#print "in zone other resources for nisbet: " + zone + " ", other_zones_resources.get_resources(project), "\n"
 			# for each project in this zone subtract the projects total instances
-			print "for zone: " + zone
+			#print "for zone: " + zone
 			new_quota = baseline_quotas[project].__minus__(other_zones_resources.get_resources(project))
 			zoneManager.set_quota(zone, baseline_quotas[project], new_quota)
 			# now if we subtract the resources we are using in our own zone do we go over quota?
