@@ -345,12 +345,13 @@ class ZoneQueryManager:
 		#other_zones_resources = zoneManager.get_other_zones_current_resources(zone)
 		other_zones_resources = ZoneInstance()
 		for z in self.regions.keys():
-			if z == zone:
-				#print "skipping " + z
-				continue
-			else:
-				other_zones_resources.__sum__(self.instances[z]) # add the project quotas from the other snapshot(s)
-				#print "adding: resources from zone " + z
+			#if z == zone:
+			#	#print "skipping " + z
+			#	continue
+			#else:
+			#	other_zones_resources.__sum__(self.instances[z]) # add the project quotas from the other snapshot(s)
+			print "adding: resources from zone " + z
+			other_zones_resources.__sum__(self.instances[z]) # add the project quotas from the other snapshot(s)
 		return other_zones_resources
 		
 	def __parse_query_result__(self, table):
