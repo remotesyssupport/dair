@@ -832,8 +832,6 @@ def write_emailed_list(emailed_dict, file_name=DELINQUENT_FILE):
 		f.close()
 	except:
 		pass
-	finally:
-		f.close()
 		
 def update_emailed_list(emailed_overquota_projects, quota):
 	"""Function updates the dictionary of emailed users with any quotas that have gone over.
