@@ -355,7 +355,7 @@ class ZoneQueryManager:
 				#print "skipping " + z
 				continue
 			else:
-				other_zones_resources.__sum__(self.instances[z]) # add the project quotas from the other snapshot(s)
+				other_zones_resources.__sum__(self.instances[z]) # add the project instances from the other snapshot(s)
 				#print "adding: resources from zone " + z
 		return other_zones_resources
 		
@@ -413,9 +413,8 @@ class ZoneQueryManager:
 		#"""
 		# in Unix: echo "Project x is overquota in zone y" | mail -s "Message from ROOT at Nova-ab" andrew.nisbet@cybera.ca
 		subject = "Quota-Monitor: " + quota.get_project_name() + " over quota"
-		body = "Project " + quota.get_project_name() + " is overquota: " + quota.get_exceeded() + "in zone " + zone 
+		body = "Project " + quota.get_project_name() + " is overquota: " + quota.get_exceeded()
 		project_stakeholders = quota.get_contact()
-		print "got here."
 		if len(project_stakeholders) == 0:
 			return
 		if quota.is_emailed() == False: # The contacts haven't been emailed yet.
@@ -518,8 +517,6 @@ class Quota:
 		"""
 		return_quota = self.__clone__()
 		for key in self.quota.keys():
-			print "quota.get_quota(key) ==>: " + key + "=" + str(quota.get_quota(key))
-			print "return_quota.get_quota(key) ==>: " + key + "=" + str(return_quota.get_quota(key))
 			return_quota.set_quota(key, return_quota.get_quota(key) - quota.get_quota(key))
 		
 		return return_quota
@@ -896,8 +893,10 @@ def update_emailed_list(emailed_overquota_projects, quota):
 	"""
 
 	# if the project is over quota add it to the list.
+	print "quota==> ", quota
 	if quota.is_over_quota():
 		emailed_overquota_projects[quota.get_project_name()] = 1
+		print "got here."
 	else:
 		# note that when they go over again they will get a new email.
 		try:
@@ -955,7 +954,6 @@ def balance_quotas():
 			# now if we subtract the resources we are using in our own zone do we go over quota?
 			my_resources = zoneManager.get_my_zones_resources(zone, project)
 			total_usage = new_quota.__minus__(my_resources)
-			print "total_usage: ", total_usage, " is overquota? ", total_usage.is_over_quota()
 			if total_usage.is_over_quota():
 				zoneManager.email(zone, total_usage)
 				# this stops the user from getting emails every time the quota monitor runs.
