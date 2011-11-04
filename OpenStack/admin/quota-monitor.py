@@ -407,6 +407,7 @@ class ZoneQueryManager:
 		subject = "Quota-Monitor: " + quota.get_project_name() + " over quota"
 		body = "Project " + quota.get_project_name() + " is overquota: " + quota.get_exceeded() + "in zone " + zone 
 		project_stakeholders = quota.get_contact()
+		print "got here."
 		if len(project_stakeholders) == 0:
 			return
 		if quota.get_quota(Quota.fl) & Quota.EMAILED == 0: # The contacts haven't been emailed yet.
