@@ -412,7 +412,7 @@ class ZoneQueryManager:
 		if quota.get_quota(Quota.fl) & Quota.EMAILED == 0: # The contacts haven't been emailed yet.
 			for contact in project_stakeholders:
 				cmd = 'echo \"' + body + '\" | mail -s \"' + subject + '\" ' + contact
-				#print cmd
+				print "email() => " + cmd
 				self.__execute_shell__(cmd)
 				# set the emailed flag.
 				quota.set_quota(Quota.fl, (quota.get_quota(Quota.fl) | Quota.EMAILED))
@@ -948,7 +948,7 @@ def balance_quotas():
 			# for each project in this zone subtract the projects total instances
 			new_quota = baseline_quotas[project].__minus__(other_zones_resources.get_resources(project))
 			zoneManager.set_quota(zone, baseline_quotas[project], new_quota)
-			if new_quota.is_over_quota(): # TODO fix so we don't need a dictionary of quotas (new_quotas)'
+			if new_quota.is_over_quota():
 				zoneManager.email(zone, new_quota)
 				# this stops the user from getting emails every time the quota monitor runs.
 				update_emailed_list(emailed_overquota_projects, new_quota)
