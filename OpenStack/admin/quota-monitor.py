@@ -512,7 +512,10 @@ class Quota:
 		"""
 		return_quota = self.__clone__()
 		for key in self.quota.keys():
+			print "quota.get_quota(key) ==>: " + key + "=" + string.atoi(quota.get_quota(key))
+			print "return_quota.get_quota(key) ==>: " + key + "=" + string.atoi(return_quota.get_quota(key))
 			return_quota.set_quota(key, return_quota.get_quota(key) - quota.get_quota(key))
+		
 		return return_quota
 		
 	def __clone__(self):
