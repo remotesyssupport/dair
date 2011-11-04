@@ -283,8 +283,8 @@ class ZoneQueryManager:
 			# ensure that we don't set negative quota values by normalizing the quota.
 			# I do this because we have computed the project's allowed resources - the instances running
 			# It could be a negative number but we shouldn't set a quota to a negative value. 
-			if computed_quota.is_over_quota():
-				computed_quota.__normalize__()
+			#if computed_quota.is_over_quota():
+			#	computed_quota.__normalize__()
 			
 			for quota_name in computed_quota.get_changed_quotas():
 				euca_cmd = 'ssh -o StrictHostKeyChecking=no ' + address + " \"nova-manage project quota " + computed_quota.get_project_name() + " " + quota_name + " " + str(computed_quota.get_quota(quota_name)) + "\""
