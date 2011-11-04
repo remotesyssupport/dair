@@ -528,6 +528,13 @@ class Quota:
 		'metadata_items: 128, gigabytes: 100, floating_ips: 10, instances: 10, volumes: 10, cores: 20'
 		"""
 		new_quota = Quota(self.get_project_name())
+		for name in self.exceeded:
+			new_quota.exceeded.append(name)
+		for name in self.changed_quotas:
+			new_quota.changed_quotas.append(name) # names of quotas to be set by nova-manage.
+		new_quota.project = self.project
+		new_quota.emailed = self.emailed
+		new_quota.over_quota = self.over_quota
 		for key in self.quota.keys():
 			new_quota.set_quota(key, self.get_quota(key))
 		return new_quota
