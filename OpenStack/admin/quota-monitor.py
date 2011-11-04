@@ -585,7 +585,7 @@ class Quota:
 			result += self.quota[key] - rh.get_quota(key)
 		return result
 		
-	def is_emailed():
+	def is_emailed(self):
 		return self.emailed
 	
 	# reads lines from a file and if the values are '=' separated it will assign the named quota the '=' value.
