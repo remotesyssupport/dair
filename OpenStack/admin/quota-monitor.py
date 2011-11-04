@@ -395,22 +395,6 @@ class ZoneQueryManager:
 		is mailed if the quota object has the EMAILED flag set to 0. 
 		This method will always mail unless the EMAILED flag is set.
 		"""
-		#>>> zqm = ZoneQueryManager()
-		#>>> quota = Quota('bloaded andrew.nisbet@cybera.ca', 0) # over quota but normalized, never mailed.
-		#>>> quota.set_quota(Quota.M, -1)
-		#>>> quota.is_over_quota()
-		#True
-		#>>> zqm.email('alberta', quota)
-		#echo "Project bloaded is overquota: metadata_items, in zone alberta" | mail -s "Quota-Monitor: bloaded over quota" andrew.nisbet@cybera.ca
-		#>>> print quota
-		#'metadata_items: -1, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
-		#>>> quota.__normalize__()
-		#>>> print quota
-		#'metadata_items: 0, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
-		#>>> zqm.email('alberta', quota)
-		#>>> print quota
-		#'metadata_items: 0, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
-		#"""
 		# in Unix: echo "Project x is overquota in zone y" | mail -s "Message from ROOT at Nova-ab" andrew.nisbet@cybera.ca
 		if emailed_list.has_key(quota.get_project_name()):
 			return;
@@ -425,7 +409,7 @@ class ZoneQueryManager:
 		for contact in project_stakeholders:
 			cmd = 'echo \"' + body + '\" | mail -s \"' + subject + '\" ' + contact
 			print "email() => " + cmd
-			self.__execute_shell__(cmd)
+			self.__execute_nova__(cmd)
 		
 # metadata_items: 128
 # gigabytes: 100
@@ -887,7 +871,6 @@ def update_emailed_list(emailed_overquota_projects, quota):
 	# if the project is over quota add it to the list.
 	if quota.is_over_quota():
 		emailed_overquota_projects[quota.get_project_name()] = 1
-		print "got here."
 	else:
 		# note that when they go over again they will get a new email.
 		try:
