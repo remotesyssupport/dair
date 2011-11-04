@@ -943,6 +943,7 @@ def balance_quotas():
 			resources = other_zones_resources.get_resources(project)
 			#print "in zone other resources for nisbet: " + zone + " ", other_zones_resources.get_resources(project), "\n"
 			# for each project in this zone subtract the projects total instances
+			print "for zone: " + zone
 			new_quota = baseline_quotas[project].__minus__(other_zones_resources.get_resources(project))
 			zoneManager.set_quota(zone, baseline_quotas[project], new_quota)
 			print "new_quota: ", new_quota, " is overquota? ", new_quota.is_over_quota()
