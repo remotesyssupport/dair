@@ -18,13 +18,13 @@ import logging		# for logging
 import os.path		# for file testing.
 
 ### PRODUCTION CODE ###
-#APP_DIR = '/home/cybera/dev/dair/OpenStack/admin/'
-APP_DIR = '/root/dair/OpenStack/admin/'
+APP_DIR = '/home/cybera/dev/dair/OpenStack/admin/'
+#APP_DIR = '/root/dair/OpenStack/admin/'
 GSTD_QUOTA_FILE = APP_DIR + "baseline_quotas.cfg" # Gold standard quotas for baseline.
 DELINQUENT_FILE = APP_DIR + "Quota-monitor_scratch.tmp" # list of delinquent projects that HAVE been emailed.
 ### PRODUCTION CODE ###
-#NOVA_CONF = "/home/cybera/dev/nova.conf" # nova.conf -- change for production.
-NOVA_CONF = "/etc/nova/nova.conf" # nova.conf
+NOVA_CONF = "/home/cybera/dev/nova.conf" # nova.conf -- change for production.
+#NOVA_CONF = "/etc/nova/nova.conf" # nova.conf
 AUDIT = False
 
 class ProcessExecutionError(IOError):
@@ -418,7 +418,7 @@ class ZoneQueryManager:
 				print "email() => " + cmd
 				self.__execute_shell__(cmd)
 				# set the emailed flag.
-				quota.set_quota(Quota.fl, (quota.get_quota(Quota.fl) | Quota.EMAILED))
+				quota.set_emailed(True)
 			return
 		
 		
@@ -508,11 +508,11 @@ class Quota:
 		'metadata_items: 0, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
 		>>> s = r.__minus__(p)
 		>>> print s
-		'metadata_items: -1, gigabytes: -1, floating_ips: -1, instances: -1, volumes: -1, cores: -1'
+		'metadata_items: 0, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
 		"""
 		return_quota = self.__clone__()
-		for key in self.quota.keys(): # TODO fix me so I set changed values only when necessary.
-			return_quota.set_quota(key, return_quota.get_quota(key) - quota.get_quota(key), True)
+		for key in self.quota.keys():
+			return_quota.set_quota(key, return_quota.get_quota(key) - quota.get_quota(key))
 		return return_quota
 		
 	def __clone__(self):
@@ -553,7 +553,7 @@ class Quota:
 		for q in r_str.splitlines():
 			test_quota = q.split(': ')
 			if self.get_quota(test_quota[0]) != string.atoi(test_quota[1]):
-				self.set_quota(test_quota[0], string.atoi(test_quota[1]), True)
+				self.set_quota(test_quota[0], string.atoi(test_quota[1]))
 			
 		
 	def compare(self, rh):
@@ -600,7 +600,7 @@ class Quota:
 				self.project = name = project_name = vs
 			else:
 				vs = string.atoi(vs)
-				self.set_quota(name, vs, True) # possible to set a quota that doesn't exist by misspelling its name
+				self.set_quota(name, vs) # possible to set a quota that doesn't exist by misspelling its name
 			#print "name = " + name + " value = " + str(vs)
 		if project_name == None or project_name == "":
 			# project name not specified in file throw exception
@@ -611,7 +611,7 @@ class Quota:
 		else:
 			return project_name
 			
-	def set_quota(self, name, value, mark_change=False):
+	def set_quota(self, name, value):
 		""" Stores a quota value. Set mark_change to True if the quota
 		should be set with nova-manage. 
 		>>> q = Quota('project_a', 1)
@@ -623,14 +623,21 @@ class Quota:
 		>>> q.get_exceeded()
 		'metadata_items, '
 		"""
-		# Mark as an exceeded quota for reporting purposes.
-		if value < 0 and self.exceeded.__contains__(name) == False:
-			self.exceeded.append(name)
 		# if this quota marks a change in a quota's value that needs to be
 		# updated with nova-manage then save the quota name
-		if mark_change == True:
-			self.changed_quotas.append(name)
-		self.quota[name] = value
+		try:
+			if self.quota[name] != value:
+				self.changed_quotas.append(name)
+		except KeyError:
+			pass
+		# Mark as an exceeded quota for reporting purposes.
+		if value < 0:
+			if self.exceeded.__contains__(name) == False:
+				self.exceeded.append(name)
+			self.quota[name] = 0
+			self.over_quota = True
+		else:
+			self.quota[name] = value
 		
 	def get_quota(self, name):
 		""" Returns a quota value or 0 if not found. """
@@ -638,27 +645,6 @@ class Quota:
 			return self.quota[name]
 		except KeyError:
 			return 0
-			
-	# set negative quotas to zero and set the email flag to one.
-	def __normalize__(self):
-		"""Set any negative quotas to zero and set the email flag on the quota to 1.
-		>>> quota_good = Quota('good', 1)
-		>>> print quota_good
-		'metadata_items: 1, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
-		>>> quota_good.__normalize__()
-		>>> print quota_good
-		'metadata_items: 1, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
-		>>> quota_bad = Quota('bad', -1)
-		>>> print quota_bad
-		'metadata_items: -1, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
-		>>> quota_bad.__normalize__()
-		>>> print quota_bad
-		'metadata_items: 0, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
-		"""
-		for key in self.quota.keys():
-			if self.quota[key] < 0:
-				self.set_quota(key, 0)
-				self.over_quota = True
 		
 	def __str__(self):
 		return repr("metadata_items: %d, gigabytes: %d, floating_ips: %d, instances: %d, volumes: %d, cores: %d" % \
@@ -685,11 +671,6 @@ class Quota:
 		False
 		>>> s = r.__minus__(q)
 		>>> print s
-		'metadata_items: -2, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
-		>>> print s.is_over_quota()
-		True
-		>>> s.__normalize__()
-		>>> print s
 		'metadata_items: 0, gigabytes: 0, floating_ips: 0, instances: 0, volumes: 0, cores: 0'
 		>>> print s.is_over_quota()
 		True
@@ -702,6 +683,9 @@ class Quota:
 			if self.quota[key] < 0: # accounts for normalized quota
 				return True
 		return False
+		
+	def set_emailed(b):
+		self.emailed = b
 		
 	def get_exceeded(self):
 		"""Returns a list of quotas that have been exceeded. 
@@ -746,7 +730,7 @@ class Quota:
 		>>> q = Quota('q')
 		>>> print q.get_changed_quotas()
 		[]
-		>>> q.set_quota(Quota.C, 10, True)
+		>>> q.set_quota(Quota.C, 10)
 		>>> print q.get_changed_quotas()
 		['cores']
 		>>> print q.get_changed_quotas(True) # is a baseline quota
@@ -1021,6 +1005,6 @@ def main():
 
 
 if __name__ == "__main__":
-	#import doctest
-	#doctest.testmod()
+	import doctest
+	doctest.testmod()
 	sys.exit(main())
