@@ -18,13 +18,13 @@ import logging		# for logging
 import os.path		# for file testing.
 
 ### PRODUCTION CODE ###
-APP_DIR = '/home/cybera/dev/dair/OpenStack/admin/'
-#APP_DIR = '/root/dair/OpenStack/admin/'
+#APP_DIR = '/home/cybera/dev/dair/OpenStack/admin/'
+APP_DIR = '/root/dair/OpenStack/admin/'
 GSTD_QUOTA_FILE = APP_DIR + "baseline_quotas.cfg" # Gold standard quotas for baseline.
 DELINQUENT_FILE = APP_DIR + "Quota-monitor_scratch.tmp" # list of delinquent projects that HAVE been emailed.
 ### PRODUCTION CODE ###
-NOVA_CONF = "/home/cybera/dev/nova.conf" # nova.conf -- change for production.
-#NOVA_CONF = "/etc/nova/nova.conf" # nova.conf
+#NOVA_CONF = "/home/cybera/dev/nova.conf" # nova.conf -- change for production.
+NOVA_CONF = "/etc/nova/nova.conf" # nova.conf
 AUDIT = False
 
 class ProcessExecutionError(IOError):
@@ -1021,6 +1021,6 @@ def main():
 
 
 if __name__ == "__main__":
-	import doctest
-	doctest.testmod()
+	#import doctest
+	#doctest.testmod()
 	sys.exit(main())
