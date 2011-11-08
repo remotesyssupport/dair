@@ -42,19 +42,19 @@ class CloudResources:
 			"memory_mb-memory_mb_used AS memory_mb_avail "
 			"FROM compute_nodes "
 			"INNER JOIN services AS s ON service_id=s.id "
-			"WHERE binary='nova-compute' AND s.deleted=0 AND disabled=0"
+			"WHERE s.binary='nova-compute' AND s.deleted=0 AND s.disabled=0"
 		)
 	
 		total_usage = conn.execute(
 			"SELECT CAST(SUM(vcpus) AS SIGNED) AS vcpus, "
 			"CAST(SUM(vcpus_used) AS SIGNED) AS vcpus_used, "
-			"CAST(SUM(vcpus)-SUM(c.vcpus_used) AS SIGNED) AS vcpus_avail, "
+			"CAST(SUM(vcpus)-SUM(vcpus_used) AS SIGNED) AS vcpus_avail, "
 			"CAST(SUM(memory_mb) AS SIGNED) AS memory_mb, "
 			"CAST(SUM(memory_mb_used) AS SIGNED) AS memory_mb_used, "
 			"CAST(SUM(memory_mb)-SUM(memory_mb_used) AS SIGNED) AS memory_mb_avail "
 			"FROM compute_nodes "
 			"INNER JOIN services AS s ON service_id=s.id "
-			"WHERE binary='nova-compute' AND s.deleted=0 AND disabled=0"
+			"WHERE s.binary='nova-compute' AND s.deleted=0 AND s.disabled=0"
 		)
 
 		resources = {}
