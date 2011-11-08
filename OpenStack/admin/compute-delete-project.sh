@@ -6,7 +6,7 @@
 
 
 NOVA_CONF='/etc/nova/nova.conf'
-QUOTA_CFG="/root/dair/OpenStack/admin/baseline_quotas.cfg"
+QUOTA_CFG="/root/dair/OpenStack/admin/quota-baseline.cfg"
 GIT_DIR="/root/dair"
 
 

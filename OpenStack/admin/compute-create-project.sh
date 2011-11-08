@@ -5,7 +5,7 @@ LOG="$LOG_DIR/compute-create-project.log"
 ERR="$LOG_DIR/compute-create-project-error.log"
 VENV="/usr/local/openstack-dashboard/dair/openstack-dashboard/tools/with_venv.sh"
 MANAGE="/usr/local/openstack-dashboard/dair/openstack-dashboard/dashboard/manage.py"
-QUOTA_CFG="/root/dair/OpenStack/admin/baseline_quotas.cfg"
+QUOTA_CFG="/root/dair/OpenStack/admin/quota-baseline.cfg"
 GIT_DIR="/root/dair"
 
 set -o nounset
