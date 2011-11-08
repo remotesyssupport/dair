@@ -67,6 +67,8 @@ class CloudResources:
 	
 		node_usage.close()
 		total_usage.close()
+
+		web.header('Content-Type', 'application/json')
 		return json.dumps(resources)
 
 class MachineTypes:
@@ -84,6 +86,8 @@ class MachineTypes:
 			del machine_types[row['name']]['name']
 
 		result.close()
+
+		web.header('Content-Type', 'application/json')
 		return json.dumps(machine_types)
 
 class Quotas:
@@ -119,11 +123,15 @@ class Quotas:
 		)
 
 		quotas = {}
+
 		try:
 			quotas['total'] = dict(total.first())
 		except TypeError:
 			return "Unknown project"
+
 		quotas['used'] = dict(used_compute.first().items() + used_volume.first().items() + used_ip.first().items())
+		
+		web.header('Content-Type', 'application/json')
 		return json.dumps(quotas)
 
 if __name__ == '__main__':
