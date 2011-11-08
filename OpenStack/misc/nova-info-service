@@ -68,7 +68,7 @@ class CloudResources:
 		node_usage.close()
 		total_usage.close()
 
-		web.header('Content-Type', 'application/json')
+		web.header('Content-Type', 'application/json; charset=utf-8')
 		return json.dumps(resources)
 
 class MachineTypes:
@@ -87,7 +87,7 @@ class MachineTypes:
 
 		result.close()
 
-		web.header('Content-Type', 'application/json')
+		web.header('Content-Type', 'application/json; charset=utf-8')
 		return json.dumps(machine_types)
 
 class Quotas:
@@ -131,7 +131,7 @@ class Quotas:
 
 		quotas['used'] = dict(used_compute.first().items() + used_volume.first().items() + used_ip.first().items())
 		
-		web.header('Content-Type', 'application/json')
+		web.header('Content-Type', 'application/json; charset=utf-8')
 		return json.dumps(quotas)
 
 if __name__ == '__main__':
