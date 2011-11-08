@@ -19,7 +19,7 @@ import os.path		# for file testing.
 
 #APP_DIR = '/home/cybera/dev/dair/OpenStack/admin/'
 APP_DIR = '/root/dair/OpenStack/admin/'
-GSTD_QUOTA_FILE = APP_DIR + "baseline_quotas.cfg" # Gold standard quotas for baseline.
+GSTD_QUOTA_FILE = APP_DIR + "quota-baseline.cfg" # Gold standard quotas for baseline.
 DELINQUENT_FILE = APP_DIR + "/var/lib/quota-monitor/emailed.lst" # list of delinquent projects that HAVE been emailed.
 #NOVA_CONF = "/home/cybera/dev/nova.conf" # nova.conf -- change for production.
 NOVA_CONF = "/etc/nova/nova.conf" # nova.conf
@@ -831,7 +831,8 @@ def write_emailed_list(emailed_dict, file_name=DELINQUENT_FILE):
 			f.write(key + " ")
 		f.close()
 	except:
-		pass
+		log = QuotaLogger()
+		log.error("failed to get write list of delinquent projects ")
 		
 def update_emailed_list(emailed_overquota_projects, quota):
 	"""Function updates the dictionary of emailed users with any quotas that have gone over.

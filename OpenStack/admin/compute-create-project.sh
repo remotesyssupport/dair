@@ -5,7 +5,8 @@ LOG="$LOG_DIR/compute-create-project.log"
 ERR="$LOG_DIR/compute-create-project-error.log"
 VENV="/usr/local/openstack-dashboard/dair/openstack-dashboard/tools/with_venv.sh"
 MANAGE="/usr/local/openstack-dashboard/dair/openstack-dashboard/dashboard/manage.py"
-QUOTA_CFG="/root/dair/OpenStack/admin/baseline_quotas.cfg"
+QUOTA_CFG="/root/dair/OpenStack/admin/quota-baseline.cfg"
+GIT_DIR="/root/dair"
 
 set -o nounset
 
@@ -141,7 +142,13 @@ done
 if [ -s "$QUOTA_CFG" ]
 then
   echo "adding $PROJECT to $QUOTA_CFG."
+  MY_DIR=`pwd`
+  cd $GIT_DIR
+  git pull
   echo "project=$PROJECT $EMAIL, gigabytes=$QUOTA_GIGABYTES, floating_ips=$QUOTA_FLOATING_IPS, instances=$QUOTA_INSTANCES, volumes=$QUOTA_VOLUMES, cores=$QUOTA_CORES" >> "$QUOTA_CFG"
+  git commit --message "Added project $PROJECT." $QUOTA_CFG
+  git push
+  cd $MY_DIR
 else
   echo "$QUOTA_CFG not found. Manually enter this project's quotas so they can be balanced."
   echo "project=$PROJECT $EMAIL, gigabytes=$QUOTA_GIGABYTES, floating_ips=$QUOTA_FLOATING_IPS, instances=$QUOTA_INSTANCES, volumes=$QUOTA_VOLUMES, cores=$QUOTA_CORES"
