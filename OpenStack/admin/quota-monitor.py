@@ -830,9 +830,9 @@ def write_emailed_list(emailed_dict, file_name=DELINQUENT_FILE):
 		for key in emailed_dict.keys():
 			f.write(key + " ")
 		f.close()
-	except:
+	except Exception as inst:
 		log = QuotaLogger()
-		log.error("failed to get write list of delinquent projects ")
+		log.error("failed to get write list of delinquent projects " + type(inst))
 		
 def update_emailed_list(emailed_overquota_projects, quota):
 	"""Function updates the dictionary of emailed users with any quotas that have gone over.
