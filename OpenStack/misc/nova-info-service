@@ -12,10 +12,12 @@ and project quotas.  Should be run on each management node in the cloud.
 
 NOVA_CONF = '/etc/nova/nova.conf'
 
+url_prefix = '/nova-info'
+
 urls = (
-	'/resources', 'CloudResources',
-	'/machinetypes', 'MachineTypes',
-	'/quotas/(.*)', 'Quotas'
+	'%s/resources' % url_prefix, 'CloudResources',
+	'%s/machinetypes' % url_prefix, 'MachineTypes',
+	'%s/quotas/(.*)' % url_prefix, 'Quotas'
 )
 
 web.config.debug = False
