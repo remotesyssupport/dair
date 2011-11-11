@@ -826,7 +826,7 @@ def write_emailed_list(emailed_dict, file_name=DELINQUENT_FILE):
 	>>> os.remove('test.tmp')
 	"""
 	try:
-		f = open(file_name, 'w')
+		f = open(file_name, 'w', 0)
 		for key in emailed_dict.keys():
 			f.write(key + " ")
 		f.close()
