@@ -17,12 +17,12 @@ import subprocess	# for __execute_shell__()
 import logging		# for logging
 import os.path		# for file testing.
 
-APP_DIR = '/home/cybera/dev/dair/OpenStack/admin/'
-#APP_DIR = '/root/dair/OpenStack/admin/'
+#APP_DIR = '/home/cybera/dev/dair/OpenStack/admin/'
+APP_DIR = '/root/dair/OpenStack/admin/'
 GSTD_QUOTA_FILE = APP_DIR + "quota-baseline.cfg" # Gold standard quotas for baseline.
 DELINQUENT_FILE = "/var/lib/quota-monitor/emailed.lst" # list of delinquent projects that HAVE been emailed.
-NOVA_CONF = "/home/cybera/dev/nova.conf" # nova.conf -- change for production.
-#NOVA_CONF = "/etc/nova/nova.conf" # nova.conf
+#NOVA_CONF = "/home/cybera/dev/nova.conf" # nova.conf -- change for production.
+NOVA_CONF = "/etc/nova/nova.conf" # nova.conf
 AUDIT = False
 
 class ProcessExecutionError(IOError):
@@ -864,24 +864,15 @@ def balance_quotas():
 	"""
 	zoneManager = ZoneQueryManager() # this will now contain the regions and sql password
 	baseline_quotas = read_baseline_quota_file()
-	# set the quotas email flag. This is to stop over-quota projects from getting spam.
-	# deleting this file is not dangerous and will resend email to user's that are over-quota.
 	emailed_overquota_projects = read_emailed_list_file()
-	# Tell zone manager to see what's running system wide.
 	zoneManager.get_zone_resource_snapshots()
 	for zone in zoneManager.get_zones():
-		# given a specific zone, what resources are being used in other zones?
 		other_zones_resources = zoneManager.get_other_zones_current_resources(zone)
-		# new_quotas will have quotas for all projects in this zone.
 		for project in baseline_quotas.keys():
-			# if the zone doesn't have a project by that name returns a zero-ed quota.
+			# if the zone doesn't have a project by that name returns a zero-ed quota
 			resources = other_zones_resources.get_resources(project)
-			#print "in zone other resources for nisbet: " + zone + " ", other_zones_resources.get_resources(project), "\n"
-			# for each project in this zone subtract the projects total instances
-			#print "for zone: " + zone
 			new_quota = baseline_quotas[project].minus(other_zones_resources.get_resources(project))
 			zoneManager.set_quota(zone, baseline_quotas[project], new_quota)
-			# now if we subtract the resources we are using in our own zone do we go over quota?
 			my_resources = zoneManager.get_my_zones_resources(zone, project)
 			total_usage = new_quota.minus(my_resources)
 			if total_usage.is_over_quota():
@@ -953,6 +944,6 @@ def main():
 
 
 if __name__ == "__main__":
-	import doctest
-	doctest.testmod()
+	#import doctest
+	#doctest.testmod()
 	sys.exit(main())
