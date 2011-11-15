@@ -141,7 +141,7 @@ class ZoneQueryManager:
 		self.Q_PROJECT_GIGABYTES = """ "select project_id, sum(size) from volumes where attach_status=\\"attached\\" group by project_id;" """ # returns empty set not expected '0'
 		self.Q_PROJECT_VOLUMES   = """ "select project_id, count(size) from volumes where attach_status=\\"attached\\" group by project_id;" """
 		self.Q_PROJECT_FLOAT_IPS = """ "select project_id, count(deleted) from floating_ips where deleted=0 group by project_id;" """
-		self.Q_PROJECT_CPUS      = """ "select project_id, sum(vcpus) from instances where state=1 group by project_id;" """
+		self.Q_PROJECT_CPUS      = """ "select project_id, sum(vcpus) from instances where state=1 or state=5 and deleted=0 group by project_id;" """
 		self.regions = {} # {'full_name' = ip}
 		self.instances = {} # {'full_name' = ZoneInstance}
 		self.password = None
